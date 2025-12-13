@@ -1,0 +1,42 @@
+#
+# --- Build Stage ---
+#
+FROM node:18 AS builder
+
+WORKDIR /app
+
+# Copy package manifests first – improves caching
+COPY package*.json ./
+RUN npm install
+
+# Copy the rest of the code
+COPY . .
+
+# Accept API_URL as build argument
+ARG API_URL
+ENV API_URL=$API_URL
+
+# Set NODE_ENV to production for webpack
+ENV NODE_ENV=production
+
+# Build the production bundle (to /dist)
+RUN npm run build
+
+
+#
+# --- Production Stage (Nginx) ---
+#
+FROM nginx:1.27-alpine
+
+# Copy compiled app to Nginx HTML directory
+COPY --from=builder /app/dist /usr/share/nginx/html
+
+# Copy our custom Nginx config
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# Expose port 8080 to document which port the container is listening on
+EXPOSE 8080
+
+# The PORT environment variable is automatically provided by Cloud Run.
+# Nginx will now listen on this port.
+CMD ["nginx", "-g", "daemon off;"]

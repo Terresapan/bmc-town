@@ -1,0 +1,41 @@
+# Git and version control
+.git
+.gitignore
+
+# Python virtual environments
+.venv/
+venv/
+env/
+
+# Python bytecode and cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.ruff_cache/
+
+# Testing & linting artifacts
+.pytest_cache/
+.coverage
+.mypy_cache/
+htmlcov/
+.tox/
+
+# OS & IDE specific
+.DS_Store
+.vscode/
+.idea/
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# Secrets
+.env
+*.env
+
+# Application-specific (from your list)
+data/
+img/
+config/

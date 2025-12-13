@@ -1,0 +1,33 @@
+services:
+  api:
+    container_name: bmc-api
+    build:
+      context: ./bmc-api
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./bmc-api/.env
+    volumes:
+      - ./bmc-api/src/bmc:/app/bmc
+      - ./bmc-api/evals:/app/evals
+    networks:
+      - bmc-network
+  ui:
+    container_name: bmc-ui
+    build:
+      context: ./bmc-ui
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./bmc-ui:/app
+      - /app/node_modules
+    depends_on:
+      - api
+    networks:
+      - bmc-network
+
+networks:
+  bmc-network:
+    name: bmc-network

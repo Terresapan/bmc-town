@@ -1,0 +1,44 @@
+# cloudbuild-api.yaml
+steps:
+  - name: "gcr.io/cloud-builders/docker"
+    args: [
+        "build",
+        "-f",
+        "Dockerfile.prod", # Use the production Dockerfile
+        "-t",
+        "us-central1-docker.pkg.dev/$PROJECT_ID/bmc-repo/bmc-api:latest",
+        ".",
+      ]
+    dir: "bmc-api"
+
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      [
+        "push",
+        "us-central1-docker.pkg.dev/$PROJECT_ID/bmc-repo/bmc-api:latest",
+      ]
+
+  - name: "gcr.io/cloud-builders/gcloud"
+    args:
+      - "run"
+      - "deploy"
+      - "philoagents-api"
+      - "--image"
+      - "us-central1-docker.pkg.dev/$PROJECT_ID/bmc-repo/bmc-api:latest"
+      - "--platform"
+      - "managed"
+      - "--region"
+      - "us-central1"
+      - "--allow-unauthenticated"
+      - "--port"
+      - "8080"
+      - "--set-secrets=LANGSMITH_API_KEY=LANGSMITH_API_KEY:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest,MONGODB_URI=MONGODB_URI_PROD:latest,ADMIN_TOKEN=ADMIN_TOKEN:latest"
+      - "--update-env-vars"
+      - "LANGSMITH_PROJECT=Business-Model-Canvas-Cloud,ENV=production,LANGCHAIN_TRACING_V2=true"
+
+# 'images:', 'options:', and 'substitutions:' must be at the root level (no indentation).
+images:
+  - "us-central1-docker.pkg.dev/$PROJECT_ID/bmc-repo/bmc-api:latest"
+
+options:
+  logging: CLOUD_LOGGING_ONLY

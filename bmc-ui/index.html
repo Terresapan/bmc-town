@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" href="flower.ico?v=2" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="./style.css" />
+    <title>Phaser - BMC Town</title>
+  </head>
+
+  <body>
+    <div id="app">
+      <div id="game-container"></div>
+    </div>
+    <div
+      id="client-form-container"
+      class="form-overlay"
+      style="display: none"
+      onclick="event.stopPropagation()"
+      onmousedown="event.stopPropagation()"
+    >
+      <form
+        id="client-form"
+        onclick="event.stopPropagation()"
+        onmousedown="event.stopPropagation()"
+      >
+        <h3 id="form-title">Create New Client Profile</h3>
+
+        <label for="token">Token (Unique ID):</label>
+        <input type="text" id="token" name="token" required />
+
+        <label for="owner_name">Owner Name:</label>
+        <input type="text" id="owner_name" name="owner_name" required />
+
+        <label for="business_name">Business Name:</label>
+        <input type="text" id="business_name" name="business_name" required />
+
+        <label for="sector">Sector:</label>
+        <input type="text" id="sector" name="sector" />
+
+        <label for="challenges">Challenges (comma-separated):</label>
+        <textarea id="challenges" name="challenges" rows="3"></textarea>
+
+        <label for="goals">Goals (comma-separated):</label>
+        <textarea id="goals" name="goals" rows="3"></textarea>
+
+        <!-- Memory Section -->
+        <h4 style="margin-top: 15px; margin-bottom: 5px; border-bottom: 1px solid #ccc; padding-bottom: 5px;">Agent Memory (Long-Term Context)</h4>
+        <p style="font-size: 12px; color: #666; margin-bottom: 10px;">View and edit what the experts remember about your style and constraints.</p>
+
+        <label for="constraints">Constraints / Dislikes (comma-separated):</label>
+        <textarea id="constraints" name="constraints" rows="2" placeholder="e.g. No subscription models, Budget under $10k"></textarea>
+
+        <label for="preferences">Interaction Preferences (comma-separated):</label>
+        <textarea id="preferences" name="preferences" rows="2" placeholder="e.g. Be concise, Use metaphors, Data-driven"></textarea>
+
+        <label for="pending_topics">Pending Topics (comma-separated):</label>
+        <textarea id="pending_topics" name="pending_topics" rows="2" placeholder="Open questions the agent is tracking"></textarea>
+        <!-- End Memory Section -->
+
+        <label for="business_image">Business Image (Optional, max 5MB):</label>
+        <input
+          type="file"
+          id="business_image"
+          name="business_image"
+          accept="image/*"
+          onclick="event.stopPropagation()"
+          onmousedown="event.stopPropagation()"
+        />
+
+        <label for="business_pdf">Business PDF (Optional, max 5MB):</label>
+        <input
+          type="file"
+          id="business_pdf"
+          name="business_pdf"
+          accept=".pdf"
+          onclick="event.stopPropagation()"
+          onmousedown="event.stopPropagation()"
+        />
+
+        <div class="form-buttons">
+          <button type="submit" id="form-submit-btn">Create Profile</button>
+          <button type="button" id="form-cancel-btn">Cancel</button>
+        </div>
+      </form>
+    </div>
+    <script src="./bundle.min.js"></script>
+  </body>
+</html>

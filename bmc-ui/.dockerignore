@@ -1,0 +1,33 @@
+# Node dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build output
+dist/
+build/
+.next/
+
+# Environment variables
+.env
+.env.*
+!.env.example   # keep sample file
+
+# Git / OS junk
+.git
+.gitignore
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+
+# Docker stuff
+Dockerfile
+Dockerfile.*
+
+# Cache
+*.cache
+.cache/

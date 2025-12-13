@@ -1,0 +1,28 @@
+# Ignore local dev docker compose
+docker-compose.yml
+
+# Ignore git
+.git
+.gitignore
+
+# Ignore Python caches
+__pycache__/
+*.pyc
+*.pyo
+
+# Ignore Node stuff
+node_modules/
+dist/
+build/
+
+# Ignore env files
+.env
+.env.*
+
+# Ignore OS junk
+.DS_Store
+Thumbs.db
+
+# Ignore editor settings
+.vscode/
+.idea/

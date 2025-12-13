@@ -1,0 +1,35 @@
+#
+# --- Production Dockerfile ---
+# --- bmc-api/Dockerfile.prod ---
+#
+
+FROM python:3.12-slim
+
+# Install uv.
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set the working directory.
+WORKDIR /app
+
+# 1. Copy the file that defines your dependencies.
+COPY pyproject.toml README.md ./
+
+# 2. Create the virtual environment.
+RUN uv venv
+
+# 3. Install the project and all its dependencies from pyproject.toml.
+RUN uv pip install .
+
+# 4. Copy the application source code into the container.
+COPY src/bmc bmc/
+
+# Add the virtual environment's bin directory to the PATH
+ENV PATH="/app/.venv/bin:$PATH"
+
+# 5. This is the production-ready command.
+# It runs the fast 'uvicorn' server without the slow '--reload' flag.
+# Cloud Run will automatically pass in the correct --port.
+CMD uvicorn bmc.infrastructure.api:app --host 0.0.0.0 --port $PORT

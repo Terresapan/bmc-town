@@ -1,0 +1,46 @@
+[project]
+name = "bmc-api"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi[standard]>=0.115.8",
+    "langchain-core>=0.3.34",
+    "langchain-groq>=0.2.4",
+    "langchain-mongodb>=0.4.0",
+    "langgraph>=0.2.70",
+    "langsmith>=0.4.53",
+    "langgraph-checkpoint-mongodb>=0.1.0",
+    "pydantic-settings>=2.7.1",
+    "pymongo>=4.9.2",
+    "loguru>=0.7.3",
+    "pydantic>=2.10.6",
+    "motor>=3.4.0",
+    "langchain-google-genai>=3.0.3",
+    "google-genai>=1.50.1",
+    "dnspython>=2.8.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.4",
+    "pytest-asyncio>=1.3.0",
+    "ruff>=0.7.2",
+    "pre-commit>=4.1.0",
+    "ipykernel>=6.29.5",
+]
+
+[tool.pip]
+extra-index-url = "https://download.pytorch.org/whl/cpu/torch_stable.html"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/bmc"]
+
+[tool.ruff]
+target-version = "py312"
+
