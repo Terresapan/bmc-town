@@ -568,6 +568,54 @@ async def reset_business_memory(token: str):
 # --- END OF CRUD ENDPOINTS ---
 # ---
 
+# --- PDF EXPORT ENDPOINT ---
+@app.get("/business/user/{token}/export-pdf")
+async def export_bmc_pdf(token: str):
+    """Export the user's Business Model Canvas as a PDF."""
+    from fastapi.responses import Response
+    from bmc.application.pdf_service import generate_bmc_pdf
+    
+    try:
+        user_factory = BusinessUserFactory()
+        user = await user_factory.get_user_by_token(token)
+        
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"User with token '{token}' not found."
+            )
+        
+        # Generate PDF
+        pdf_bytes = generate_bmc_pdf(user)
+        
+        # Create safe filename from business name
+        safe_filename = user.business_name.replace(" ", "_").replace("/", "-")[:50]
+        filename = f"{safe_filename}_BMC.pdf"
+        
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f"attachment; filename=\"{filename}\""
+            }
+        )
+        
+    except DatabaseConnectionError as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database connection failed. Please try again later."
+        )
+    except DatabaseOperationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Database operation failed. Please try again."
+        )
+    except Exception as e:
+        if isinstance(e, HTTPException): raise e
+        logging.error(f"PDF generation failed: {e}")
+        raise HTTPException(status_code=500, detail=f"PDF generation failed: {str(e)}")
+# --- END PDF EXPORT ENDPOINT ---
+
 if __name__ == "__main__":
     import uvicorn
 

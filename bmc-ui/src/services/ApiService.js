@@ -434,6 +434,55 @@ class ApiService {
       throw error;
     }
   }
+
+  /**
+   * Downloads the Business Model Canvas as a PDF file.
+   * @param {string} token - The unique token of the user.
+   * @returns {Promise<void>}
+   */
+  async downloadBMCPdf(token) {
+    try {
+      console.log("Downloading BMC PDF for token:", token);
+      
+      const response = await fetch(`${this.apiUrl}/business/user/${token}/export-pdf`, {
+        method: "GET",
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || "Failed to generate PDF");
+      }
+
+      // Get the blob from the response
+      const blob = await response.blob();
+      
+      // Create a download link and trigger it
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      
+      // Try to get filename from Content-Disposition header, fallback to default
+      const contentDisposition = response.headers.get("Content-Disposition");
+      let filename = "business-model-canvas.pdf";
+      if (contentDisposition) {
+        const match = contentDisposition.match(/filename="?(.+?)"?$/);
+        if (match) {
+          filename = match[1];
+        }
+      }
+      
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      
+      console.log("PDF download triggered successfully");
+    } catch (error) {
+      console.error("Error downloading BMC PDF:", error);
+      throw error;
+    }
+  }
 }
 
 const apiServiceInstance = new ApiService();
