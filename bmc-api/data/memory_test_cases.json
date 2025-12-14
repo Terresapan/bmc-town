@@ -1,0 +1,392 @@
+[
+  {
+    "id": "test_001_simple_extraction",
+    "description": "Basic customer segment extraction",
+    "existing_memory": {
+      "canvas_state": {
+        "customer_segments": [],
+        "value_propositions": [],
+        "channels": [],
+        "customer_relationships": [],
+        "revenue_streams": [],
+        "key_resources": [],
+        "key_activities": [],
+        "key_partnerships": [],
+        "cost_structure": []
+      },
+      "constraints": [],
+      "preferences": [],
+      "pending_topics": []
+    },
+    "conversation": "User: My target customers are small business owners in the US, specifically those with 10-50 employees.\nExpert: Great! That's a well-defined segment. Any particular industry?",
+    "expected_output": {
+      "canvas_state": {
+        "customer_segments": ["Small business owners in the US with 10-50 employees"],
+        "value_propositions": [],
+        "channels": [],
+        "customer_relationships": [],
+        "revenue_streams": [],
+        "key_resources": [],
+        "key_activities": [],
+        "key_partnerships": [],
+        "cost_structure": []
+      },
+      "constraints": [],
+      "preferences": [],
+      "pending_topics": []
+    },
+    "expected_facts": ["customer_segments: Small business owners in the US with 10-50 employees"]
+  },
+  {
+    "id": "test_002_no_extraction",
+    "description": "Chit-chat conversation - should not extract anything",
+    "existing_memory": {
+      "canvas_state": {
+        "customer_segments": ["Tech startups"],
+        "value_propositions": [],
+        "channels": [],
+        "customer_relationships": [],
+        "revenue_streams": [],
+        "key_resources": [],
+        "key_activities": [],
+        "key_partnerships": [],
+        "cost_structure": []
+      },
+      "constraints": [],
+      "preferences": [],
+      "pending_topics": []
+    },
+    "conversation": "User: Thanks for the help today!\nExpert: You're welcome! Feel free to come back anytime.",
+    "expected_output": {
+      "canvas_state": {
+        "customer_segments": ["Tech startups"],
+        "value_propositions": [],
+        "channels": [],
+        "customer_relationships": [],
+        "revenue_streams": [],
+        "key_resources": [],
+        "key_activities": [],
+        "key_partnerships": [],
+        "cost_structure": []
+      },
+      "constraints": [],
+      "preferences": [],
+      "pending_topics": []
+    },
+    "expected_facts": []
+  },
+  {
+    "id": "test_003_constraint_extraction",
+    "description": "User explicitly rejects an idea - should become constraint",
+    "existing_memory": {
+      "canvas_state": {
+        "customer_segments": ["E-commerce businesses"],
+        "value_propositions": [],
+        "channels": [],
+        "customer_relationships": [],
+        "revenue_streams": [],
+        "key_resources": [],
+        "key_activities": [],
+        "key_partnerships": [],
+        "cost_structure": []
+      },
+      "constraints": [],
+      "preferences": [],
+      "pending_topics": []
+    },
+    "conversation": "Expert: Have you considered a subscription model for recurring revenue?\nUser: No, absolutely not. I want a one-time purchase model only. No subscriptions.",
+    "expected_output": {
+      "canvas_state": {
+        "customer_segments": ["E-commerce businesses"],
+        "value_propositions": [],
+        "channels": [],
+        "customer_relationships": [],
+        "revenue_streams": ["One-time purchase model"],
+        "key_resources": [],
+        "key_activities": [],
+        "key_partnerships": [],
+        "cost_structure": []
+      },
+      "constraints": ["No subscription model"],
+      "preferences": [],
+      "pending_topics": []
+    },
+    "expected_facts": ["revenue_streams: One-time purchase model", "constraint: No subscription model"]
+  },
+  {
+    "id": "test_004_conflict_resolution",
+    "description": "User changes their mind - new statement should win",
+    "existing_memory": {
+      "canvas_state": {
+        "customer_segments": ["Gen Z gamers"],
+        "value_propositions": ["Affordable gaming accessories"],
+        "channels": [],
+        "customer_relationships": [],
+        "revenue_streams": [],
+        "key_resources": [],
+        "key_activities": [],
+        "key_partnerships": [],
+        "cost_structure": []
+      },
+      "constraints": [],
+      "preferences": [],
+      "pending_topics": []
+    },
+    "conversation": "User: Actually, I've changed my mind. I want to target Millennials instead of Gen Z. They have more purchasing power.\nExpert: That makes sense. Millennials aged 25-40 would be a great target.",
+    "expected_output": {
+      "canvas_state": {
+        "customer_segments": ["Millennials with higher purchasing power"],
+        "value_propositions": ["Affordable gaming accessories"],
+        "channels": [],
+        "customer_relationships": [],
+        "revenue_streams": [],
+        "key_resources": [],
+        "key_activities": [],
+        "key_partnerships": [],
+        "cost_structure": []
+      },
+      "constraints": [],
+      "preferences": [],
+      "pending_topics": []
+    },
+    "expected_facts": ["customer_segments: Millennials with higher purchasing power (replaces Gen Z gamers)"]
+  },
+  {
+    "id": "test_005_multiple_blocks",
+    "description": "Extraction across multiple BMC blocks",
+    "existing_memory": {
+      "canvas_state": {
+        "customer_segments": [],
+        "value_propositions": [],
+        "channels": [],
+        "customer_relationships": [],
+        "revenue_streams": [],
+        "key_resources": [],
+        "key_activities": [],
+        "key_partnerships": [],
+        "cost_structure": []
+      },
+      "constraints": [],
+      "preferences": [],
+      "pending_topics": []
+    },
+    "conversation": "User: I'm building a SaaS platform for restaurants. My main value prop is reducing food waste by 30%. We'll sell through direct sales and partner with restaurant equipment suppliers.\nExpert: Excellent! That's a compelling value proposition with clear channels.",
+    "expected_output": {
+      "canvas_state": {
+        "customer_segments": ["Restaurants"],
+        "value_propositions": ["Reducing food waste by 30%"],
+        "channels": ["Direct sales"],
+        "customer_relationships": [],
+        "revenue_streams": [],
+        "key_resources": [],
+        "key_activities": [],
+        "key_partnerships": ["Restaurant equipment suppliers"],
+        "cost_structure": []
+      },
+      "constraints": [],
+      "preferences": [],
+      "pending_topics": []
+    },
+    "expected_facts": [
+      "customer_segments: Restaurants",
+      "value_propositions: Reducing food waste by 30%",
+      "channels: Direct sales",
+      "key_partnerships: Restaurant equipment suppliers"
+    ]
+  },
+  {
+    "id": "test_006_non_agreement",
+    "description": "Expert suggests but user doesn't agree - should NOT extract",
+    "existing_memory": {
+      "canvas_state": {
+        "customer_segments": ["Fitness enthusiasts"],
+        "value_propositions": [],
+        "channels": [],
+        "customer_relationships": [],
+        "revenue_streams": [],
+        "key_resources": [],
+        "key_activities": [],
+        "key_partnerships": [],
+        "cost_structure": []
+      },
+      "constraints": [],
+      "preferences": [],
+      "pending_topics": []
+    },
+    "conversation": "Expert: Have you considered targeting professional athletes as well? They could be a lucrative segment.\nUser: Hmm, maybe. I'll think about it.",
+    "expected_output": {
+      "canvas_state": {
+        "customer_segments": ["Fitness enthusiasts"],
+        "value_propositions": [],
+        "channels": [],
+        "customer_relationships": [],
+        "revenue_streams": [],
+        "key_resources": [],
+        "key_activities": [],
+        "key_partnerships": [],
+        "cost_structure": []
+      },
+      "constraints": [],
+      "preferences": [],
+      "pending_topics": ["Consider targeting professional athletes"]
+    },
+    "expected_facts": ["pending_topic: Consider targeting professional athletes"]
+  },
+  {
+    "id": "test_007_preference_extraction",
+    "description": "User states a communication preference",
+    "existing_memory": {
+      "canvas_state": {
+        "customer_segments": ["Enterprise clients"],
+        "value_propositions": [],
+        "channels": [],
+        "customer_relationships": [],
+        "revenue_streams": [],
+        "key_resources": [],
+        "key_activities": [],
+        "key_partnerships": [],
+        "cost_structure": []
+      },
+      "constraints": [],
+      "preferences": [],
+      "pending_topics": []
+    },
+    "conversation": "User: Can you keep your responses short and to the point? I prefer bullet points over long paragraphs.\nExpert: Absolutely! I'll be more concise going forward.",
+    "expected_output": {
+      "canvas_state": {
+        "customer_segments": ["Enterprise clients"],
+        "value_propositions": [],
+        "channels": [],
+        "customer_relationships": [],
+        "revenue_streams": [],
+        "key_resources": [],
+        "key_activities": [],
+        "key_partnerships": [],
+        "cost_structure": []
+      },
+      "constraints": [],
+      "preferences": ["Prefers short, concise responses", "Prefers bullet points over long paragraphs"],
+      "pending_topics": []
+    },
+    "expected_facts": ["preference: Prefers short, concise responses", "preference: Prefers bullet points"]
+  },
+  {
+    "id": "test_008_append_to_existing",
+    "description": "User adds to existing segment - should append, not replace",
+    "existing_memory": {
+      "canvas_state": {
+        "customer_segments": ["Freelancers"],
+        "value_propositions": ["Time tracking made easy"],
+        "channels": [],
+        "customer_relationships": [],
+        "revenue_streams": [],
+        "key_resources": [],
+        "key_activities": [],
+        "key_partnerships": [],
+        "cost_structure": []
+      },
+      "constraints": [],
+      "preferences": [],
+      "pending_topics": []
+    },
+    "conversation": "User: I also want to target small agencies with 5-10 people. They have similar needs to freelancers.\nExpert: That's a natural extension of your market.",
+    "expected_output": {
+      "canvas_state": {
+        "customer_segments": ["Freelancers", "Small agencies with 5-10 people"],
+        "value_propositions": ["Time tracking made easy"],
+        "channels": [],
+        "customer_relationships": [],
+        "revenue_streams": [],
+        "key_resources": [],
+        "key_activities": [],
+        "key_partnerships": [],
+        "cost_structure": []
+      },
+      "constraints": [],
+      "preferences": [],
+      "pending_topics": []
+    },
+    "expected_facts": ["customer_segments: Small agencies with 5-10 people (appended)"]
+  },
+  {
+    "id": "test_009_cost_and_revenue",
+    "description": "User discusses cost structure and revenue",
+    "existing_memory": {
+      "canvas_state": {
+        "customer_segments": ["Online retailers"],
+        "value_propositions": ["Automated inventory management"],
+        "channels": [],
+        "customer_relationships": [],
+        "revenue_streams": [],
+        "key_resources": [],
+        "key_activities": [],
+        "key_partnerships": [],
+        "cost_structure": []
+      },
+      "constraints": [],
+      "preferences": [],
+      "pending_topics": []
+    },
+    "conversation": "User: My main costs will be cloud infrastructure on AWS and a team of 3 developers. I plan to charge $99/month per store.\nExpert: That's a solid pricing strategy. Monthly recurring revenue is great.",
+    "expected_output": {
+      "canvas_state": {
+        "customer_segments": ["Online retailers"],
+        "value_propositions": ["Automated inventory management"],
+        "channels": [],
+        "customer_relationships": [],
+        "revenue_streams": ["$99/month subscription per store"],
+        "key_resources": ["Development team (3 developers)"],
+        "key_activities": [],
+        "key_partnerships": [],
+        "cost_structure": ["Cloud infrastructure (AWS)", "Development team salaries"]
+      },
+      "constraints": [],
+      "preferences": [],
+      "pending_topics": []
+    },
+    "expected_facts": [
+      "revenue_streams: $99/month subscription per store",
+      "key_resources: Development team (3 developers)",
+      "cost_structure: Cloud infrastructure (AWS)",
+      "cost_structure: Development team salaries"
+    ]
+  },
+  {
+    "id": "test_010_explicit_agreement",
+    "description": "User explicitly agrees to expert suggestion",
+    "existing_memory": {
+      "canvas_state": {
+        "customer_segments": ["Pet owners"],
+        "value_propositions": [],
+        "channels": [],
+        "customer_relationships": [],
+        "revenue_streams": [],
+        "key_resources": [],
+        "key_activities": [],
+        "key_partnerships": [],
+        "cost_structure": []
+      },
+      "constraints": [],
+      "preferences": [],
+      "pending_topics": []
+    },
+    "conversation": "Expert: Given your target audience, Instagram and TikTok would be excellent channels to reach pet owners. What do you think?\nUser: Yes, that's exactly what I was thinking! Let's focus on Instagram and TikTok.",
+    "expected_output": {
+      "canvas_state": {
+        "customer_segments": ["Pet owners"],
+        "value_propositions": [],
+        "channels": ["Instagram", "TikTok"],
+        "customer_relationships": [],
+        "revenue_streams": [],
+        "key_resources": [],
+        "key_activities": [],
+        "key_partnerships": [],
+        "cost_structure": []
+      },
+      "constraints": [],
+      "preferences": [],
+      "pending_topics": []
+    },
+    "expected_facts": ["channels: Instagram", "channels: TikTok"]
+  }
+]

@@ -5,7 +5,7 @@ import logging
 from langchain_core.messages import HumanMessage, AIMessage, BaseMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
 from bmc.config import settings
-from bmc.domain.business_user import BusinessUser, BusinessInsights
+from bmc.domain.business_user import BusinessInsights
 
 logger = logging.getLogger(__name__)
 
@@ -30,17 +30,82 @@ Extract new facts, updates, or constraints from the RECENT CONVERSATION and merg
 ---
 
 ### EXTRACTION RULES:
-1. **Explicit Agreement Only**: Only extract facts that the user has explicitly stated or agreed to. Do NOT extract vague suggestions from the AI that the user hasn't confirmed.
-2. **Conflict Resolution**:
-   - If the user says something that contradicts the "Existing Memory", the **User's new statement WINS**. Update the fact.
-   - If the user explicitly rejects an idea (e.g., "No subscription"), move it to `constraints`.
-3. **Categorization**:
-   - `canvas_state`: Map facts to the 9 BMC blocks (customer_segments, value_propositions, etc.).
-   - `constraints`: Hard boundaries ("Budget under $500", "Must use Python").
-   - `preferences`: User style ("Be concise", "Use metaphors").
-   - `pending_topics`: Unresolved questions ("Need to check 2002 revenue").
-4. **Minimalism**: If the conversation was just chit-chat ("Hello", "Thanks"), return the EXISTING MEMORY exactly as is. Do not hallucinate updates.
 
+#### Rule 1: Explicit Agreement Only
+Only extract facts that the user has EXPLICITLY stated or agreed to.
+
+**AGREEMENT INDICATORS (DO Extract):**
+- Direct statements: "My customers are X", "We'll charge $99/month"
+- Explicit confirmation: "Yes", "Correct", "That's right", "Let's do that", "Exactly"
+- Affirmative action: "Let's focus on Instagram"
+
+**NON-AGREEMENT (DO NOT Extract):**
+- Uncertainty: "Maybe", "I'll think about it", "Not sure", "Possibly"
+- Questions: "Should I target Gen Z?"
+- Expert suggestions the user didn't respond to or confirm
+
+#### Rule 2: Conflict Resolution
+- If the user says something that contradicts the "Existing Memory", the **User's new statement WINS**. Replace the old fact.
+- Keywords indicating replacement: "Actually", "Instead", "Changed my mind", "No longer"
+- If the user explicitly rejects an idea (e.g., "No subscriptions"), add it to `constraints`.
+
+#### Rule 3: Merge Behavior
+- **ADDITIONS**: If user adds a new fact (e.g., "I also want to target..."), APPEND to existing list.
+- **REPLACEMENTS**: If user changes their mind (e.g., "Actually, my target is..."), REPLACE the old value.
+- **DELETIONS**: If user rejects something previously agreed, REMOVE it and add to `constraints`.
+
+#### Rule 4: Categorization
+- `canvas_state`: Map facts to the 9 BMC blocks (customer_segments, value_propositions, channels, customer_relationships, revenue_streams, key_resources, key_activities, key_partnerships, cost_structure).
+- `constraints`: Hard boundaries the user has explicitly rejected or ruled out.
+- `preferences`: User's interaction style preferences (e.g., "Be concise", "Use bullet points").
+- `pending_topics`: Unresolved questions or items the user said they'd think about.
+
+#### Rule 5: Minimalism
+If the conversation was just chit-chat ("Hello", "Thanks", "Goodbye"), return the EXISTING MEMORY exactly as is. Do NOT hallucinate updates.
+
+---
+### FEW-SHOT EXAMPLES:
+
+#### Example 1: Simple Extraction
+CONVERSATION:
+User: "My target customers are small business owners in the US."
+Expert: "That's a clear segment!"
+
+OUTPUT: Add "Small business owners in the US" to `canvas_state.customer_segments`.
+
+#### Example 2: No Extraction Needed
+CONVERSATION:
+User: "Thanks for the help!"
+Expert: "You're welcome!"
+
+OUTPUT: Return EXISTING MEMORY unchanged. No business facts were discussed.
+
+#### Example 3: Constraint Extraction
+CONVERSATION:
+Expert: "Have you considered a subscription model?"
+User: "No, absolutely not. I only want one-time purchases."
+
+OUTPUT: 
+- Add "One-time purchases" to `canvas_state.revenue_streams`.
+- Add "No subscription model" to `constraints`.
+
+#### Example 4: Expert Suggestion - User Uncertain (Do NOT Extract)
+CONVERSATION:
+Expert: "You could partner with AWS for cloud infrastructure."
+User: "Hmm, maybe. I'll think about it."
+
+OUTPUT: 
+- Do NOT add AWS to `key_partnerships` (user didn't confirm).
+- Add "Consider AWS partnership" to `pending_topics`.
+
+#### Example 5: User Changes Mind (Replace)
+EXISTING MEMORY: customer_segments = ["Gen Z gamers"]
+CONVERSATION:
+User: "Actually, I've changed my mind. I want to target Millennials instead."
+
+OUTPUT: REPLACE customer_segments with ["Millennials"]. The old value is overwritten.
+
+---
 ### OUTPUT FORMAT
 Return ONLY valid JSON matching the `BusinessInsights` schema structure. No markdown formatting.
 IMPORTANT: `canvas_state` values must be LISTS OF STRINGS. Do not use objects/dictionaries inside the lists.

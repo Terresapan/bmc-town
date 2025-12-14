@@ -7,52 +7,149 @@ To verify that the `MemoryService` correctly extracts business facts from conver
 
 ## Architecture
 
-We will implement an **Online LLM Judge** that runs against LangSmith traces. This integrates with the existing `run_evals.py` infrastructure.
+We use a **two-phase evaluation approach**:
+1. **Offline Dataset Testing** - Deterministic tests against labeled examples
+2. **Online LLM Judge** - Runtime evaluation of production runs via LangSmith
 
-### 1. Target Runs
-The evaluator will target runs with the tag: `memory_extraction`.
-These runs represent the execution of `MemoryService.extract_business_facts`.
+---
 
--   **Inputs**:
-    -   `existing_memory` (JSON string)
-    -   `conversation_text` (String: "User: ... \n Expert: ...")
--   **Outputs**:
-    -   `BusinessInsights` (JSON structure containing `canvas_state`, `constraints`, etc.)
+## Phase 1: Offline Dataset Testing (Recommended for Development)
 
-### 2. Evaluation Metrics
+### Test Dataset
+Location: `bmc-api/data/memory_test_cases.json`
 
-| Metric | Description | Scoring |
-| :--- | :--- | :--- |
-| **Recall** | Did the extractor capture all explicitly stated facts? | 0 (Missed facts) - 1 (Captured all) |
-| **Precision** | Did the extractor avoid hallucinations? | 0 (Hallucinated) - 1 (Clean) |
-| **Conflict Resolution** | Did it correctly overwrite old facts if the user changed their mind? | 0 (Failed) - 1 (Success) |
+Each test case contains:
+- `existing_memory`: The starting state
+- `conversation`: The input conversation
+- `expected_output`: The correct extraction result
+- `expected_facts`: List of atomic facts for metric calculation
 
-### 3. Implementation Plan
+### Metric Formulas
 
-#### A. New Evaluator Class (`evals/memory_evaluator.py`)
-Create a `MemoryAccuracyEvaluator` class inheriting from `RunEvaluator`.
+For each test case, we compute:
 
--   **Logic**:
-    1.  Parse the `run` inputs and outputs.
-    2.  Construct a Prompt for **Gemini 2.5 Flash** (Judge Model).
-    3.  **Prompt**:
-        > "You are a Data Quality Auditor.
-        > Read the [CONVERSATION].
-        > Read the [EXTRACTED JSON].
-        >
-        > Check 1: Are all business facts explicitly stated in the conversation present in the JSON?
-        > Check 2: Does the JSON contain any information NOT supported by the conversation (Hallucinations)?
-        > Check 3: If the conversation contradicted the 'Existing Memory', was the JSON updated correctly?
-        >
-        > Return Score (0-1) and Reasoning."
+```
+True Positives (TP) = Facts correctly extracted (in both expected and actual)
+False Positives (FP) = Hallucinated facts (in actual but NOT in expected)
+False Negatives (FN) = Missed facts (in expected but NOT in actual)
 
-#### B. Update Runner (`evals/run_evals.py`)
-Modify the main script to include a new phase.
+Precision = TP / (TP + FP)   # "Of what was extracted, how much was correct?"
+Recall = TP / (TP + FN)      # "Of what should have been extracted, how much was found?"
+F1 = 2 * (Precision * Recall) / (Precision + Recall)  # Harmonic mean
+```
 
-1.  **Phase 3: Memory Evals**
-2.  Fetch runs filtered by `tags=["memory_extraction"]`.
-3.  Execute `MemoryAccuracyEvaluator`.
-4.  Log feedback to LangSmith with key `memory_accuracy`.
+### Running Offline Tests
 
-## Future Work: Offline Dataset
-For regression testing, we can create a `tests/data/memory_gold_standard.json` containing pairs of conversations and expected extraction outputs, running them through `pytest`.
+```bash
+cd bmc-api
+python -m pytest evals/test_memory_extraction.py -v
+```
+
+---
+
+## Phase 2: Online LLM Judge (For Production Monitoring)
+
+### Target Runs
+The evaluator targets LangSmith runs with tag: `memory_extraction`.
+
+### Evaluation Process
+
+Instead of asking the LLM for a subjective score, we use it for **fact enumeration**:
+
+1. **Extract Ground Truth Facts**: Ask LLM to list all business facts from the conversation
+2. **Extract Output Facts**: Parse the extractor's output into atomic facts
+3. **Compute Overlap**: Calculate Precision/Recall/F1 programmatically
+
+### Judge Prompt (Fact Enumeration)
+
+```
+You are a Fact Extraction Auditor.
+
+## Input 1: CONVERSATION
+{conversation_text}
+
+## Input 2: EXISTING MEMORY
+{existing_memory}
+
+## Input 3: EXTRACTED OUTPUT
+{extracted_output}
+
+---
+
+## Your Task
+
+### Step 1: List Conversation Facts
+List ALL business facts that the USER explicitly stated or agreed to in the conversation.
+Format each fact as: "category: fact_content"
+
+Example:
+- "customer_segments: Small business owners"
+- "constraint: No subscription model"
+
+### Step 2: List Extracted Facts  
+List ALL facts present in the EXTRACTED OUTPUT that are NEW (not in EXISTING MEMORY).
+
+### Step 3: Identify Issues
+- **Missed Facts**: Facts from Step 1 that are NOT in Step 2
+- **Hallucinations**: Facts in Step 2 that are NOT in Step 1
+
+Output as JSON:
+{
+  "conversation_facts": ["fact1", "fact2"],
+  "extracted_facts": ["fact1", "fact3"],
+  "missed_facts": ["fact2"],
+  "hallucinated_facts": ["fact3"]
+}
+```
+
+### Scoring
+
+After receiving the JSON, compute:
+```python
+tp = len(extracted_facts) - len(hallucinated_facts)
+fp = len(hallucinated_facts)
+fn = len(missed_facts)
+
+precision = tp / (tp + fp) if (tp + fp) > 0 else 1.0
+recall = tp / (tp + fn) if (tp + fn) > 0 else 1.0
+f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0.0
+```
+
+---
+
+## Evaluation Metrics Summary
+
+| Metric | Description | Target |
+|--------|-------------|--------|
+| **Precision** | Avoids hallucinations | > 0.95 |
+| **Recall** | Captures all stated facts | > 0.85 |
+| **F1 Score** | Balanced performance | > 0.90 |
+| **Conflict Resolution** | Correctly handles "Actually..." statements | 100% |
+| **Minimalism** | Returns unchanged memory for chit-chat | 100% |
+
+---
+
+## Implementation Files
+
+| File | Purpose |
+|------|---------|
+| `data/memory_test_cases.json` | Labeled test dataset (10 cases) |
+| `evals/memory_evaluator.py` | LLM Judge evaluator class |
+| `evals/test_memory_extraction.py` | Pytest-based offline tests |
+
+---
+
+## Test Case Coverage
+
+| ID | Scenario | Tests |
+|----|----------|-------|
+| test_001 | Simple extraction | Basic fact capture |
+| test_002 | No extraction | Chit-chat handling |
+| test_003 | Constraint extraction | Rejection → constraint |
+| test_004 | Conflict resolution | User changes mind |
+| test_005 | Multiple blocks | Cross-block extraction |
+| test_006 | Non-agreement | "Maybe" handling |
+| test_007 | Preference extraction | User style preferences |
+| test_008 | Append behavior | "I also want..." |
+| test_009 | Cost and revenue | Financial facts |
+| test_010 | Explicit agreement | Expert suggestion + user confirms |
