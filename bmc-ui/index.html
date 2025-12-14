@@ -44,20 +44,6 @@
         <label for="goals">Goals (comma-separated):</label>
         <textarea id="goals" name="goals" rows="3"></textarea>
 
-        <!-- Memory Section -->
-        <h4 style="margin-top: 15px; margin-bottom: 5px; border-bottom: 1px solid #ccc; padding-bottom: 5px;">Agent Memory (Long-Term Context)</h4>
-        <p style="font-size: 12px; color: #666; margin-bottom: 10px;">View and edit what the experts remember about your style and constraints.</p>
-
-        <label for="constraints">Constraints / Dislikes (comma-separated):</label>
-        <textarea id="constraints" name="constraints" rows="2" placeholder="e.g. No subscription models, Budget under $10k"></textarea>
-
-        <label for="preferences">Interaction Preferences (comma-separated):</label>
-        <textarea id="preferences" name="preferences" rows="2" placeholder="e.g. Be concise, Use metaphors, Data-driven"></textarea>
-
-        <label for="pending_topics">Pending Topics (comma-separated):</label>
-        <textarea id="pending_topics" name="pending_topics" rows="2" placeholder="Open questions the agent is tracking"></textarea>
-        <!-- End Memory Section -->
-
         <label for="business_image">Business Image (Optional, max 5MB):</label>
         <input
           type="file"
@@ -82,8 +68,83 @@
           <button type="submit" id="form-submit-btn">Create Profile</button>
           <button type="button" id="form-cancel-btn">Cancel</button>
         </div>
-      </form>
     </div>
+
+    <!-- Canvas Preview Modal -->
+    <div id="canvas-preview-container" class="form-overlay" style="display: none">
+      <div id="canvas-preview-modal">
+        <h3 id="canvas-preview-title">📋 Your Business Model Canvas</h3>
+        
+        <div id="canvas-grid">
+          <!-- Row 1: Partners, Activities/Resources, Value Prop, Relationships/Channels, Segments -->
+          <div class="canvas-block" id="block-key-partnerships">
+            <h4>🤝 Key Partnerships</h4>
+            <textarea id="edit-key_partnerships" rows="8"></textarea>
+          </div>
+          <div class="canvas-block-double">
+            <div class="canvas-sub-block" id="block-key-activities">
+              <h4>⚙️ Key Activities</h4>
+              <textarea id="edit-key_activities" rows="2"></textarea>
+            </div>
+            <div class="canvas-sub-block" id="block-key-resources">
+              <h4>📦 Key Resources</h4>
+              <textarea id="edit-key_resources" rows="2"></textarea>
+            </div>
+          </div>
+          <div class="canvas-block" id="block-value-propositions">
+            <h4>💎 Value Propositions</h4>
+            <textarea id="edit-value_propositions" rows="8"></textarea>
+          </div>
+          <div class="canvas-block-double">
+            <div class="canvas-sub-block" id="block-customer-relationships">
+              <h4>❤️ Customer Relationships</h4>
+              <textarea id="edit-customer_relationships" rows="2"></textarea>
+            </div>
+            <div class="canvas-sub-block" id="block-channels">
+              <h4>📢 Channels</h4>
+              <textarea id="edit-channels" rows="2"></textarea>
+            </div>
+          </div>
+          <div class="canvas-block" id="block-customer-segments">
+            <h4>👥 Customer Segments</h4>
+            <textarea id="edit-customer_segments" rows="8"></textarea>
+          </div>
+          
+          <!-- Row 2: Cost Structure, Revenue Streams -->
+          <div class="canvas-block-wide" id="block-cost-structure">
+            <h4>💰 Cost Structure</h4>
+            <textarea id="edit-cost_structure" rows="2"></textarea>
+          </div>
+          <div class="canvas-block-wide" id="block-revenue-streams">
+            <h4>💵 Revenue Streams</h4>
+            <textarea id="edit-revenue_streams" rows="2"></textarea>
+          </div>
+        </div>
+
+        <!-- Extra Insights Section -->
+        <div id="canvas-insights">
+          <div class="insight-block">
+            <h4>🚫 Constraints</h4>
+            <textarea id="edit-constraints" rows="2" placeholder="Boundaries and dislikes..."></textarea>
+          </div>
+          <div class="insight-block">
+            <h4>⭐ Preferences</h4>
+            <textarea id="edit-preferences" rows="2" placeholder="Interaction style preferences..."></textarea>
+          </div>
+          <div class="insight-block">
+            <h4>❓ Pending Topics</h4>
+            <textarea id="edit-pending_topics" rows="2" placeholder="Open questions to explore..."></textarea>
+          </div>
+        </div>
+
+        <div class="modal-buttons">
+          <button id="preview-save-btn" class="btn-secondary">💾 Save Changes</button>
+          <button id="preview-download-btn" class="btn-primary">📥 Download PDF</button>
+          <button id="preview-close-btn" class="btn-cancel">Close</button>
+        </div>
+      </div>
+    </div>
+
     <script src="./bundle.min.js"></script>
   </body>
 </html>

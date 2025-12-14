@@ -12,7 +12,7 @@ from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch, cm
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
 
 from bmc.domain.business_user import BusinessUser, BusinessInsights
@@ -88,9 +88,9 @@ def generate_bmc_pdf(user: BusinessUser) -> bytes:
         "title": ParagraphStyle(
             "Title",
             parent=base_styles["Heading1"],
-            fontSize=18,
+            fontSize=28,
             alignment=TA_CENTER,
-            spaceAfter=6,
+            spaceAfter=18,
             textColor=c_indigo,
         ),
         "subtitle": ParagraphStyle(
@@ -98,7 +98,7 @@ def generate_bmc_pdf(user: BusinessUser) -> bytes:
             parent=base_styles["Normal"],
             fontSize=11,
             alignment=TA_CENTER,
-            spaceAfter=12,
+            spaceAfter=20,
             textColor=c_gray,
         ),
         "block_title": ParagraphStyle(
@@ -160,13 +160,14 @@ def generate_bmc_pdf(user: BusinessUser) -> bytes:
     # Using a nested table approach for the split cells
     
     # Activities + Resources cell (split vertically)
+    # Each cell should be half of 4.2 inches = 2.1 inches
     activities_resources = Table(
         [
             [get_block("key_activities")],
             [get_block("key_resources")],
         ],
         colWidths=[col_width],
-        rowHeights=[1.5 * inch, 1.5 * inch],
+        rowHeights=[2.1 * inch, 2.1 * inch],
     )
     activities_resources.setStyle(TableStyle([
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
@@ -177,14 +178,15 @@ def generate_bmc_pdf(user: BusinessUser) -> bytes:
         ("LINEBELOW", (0, 0), (0, 0), 0.5, c_purple),
     ]))
     
-    # Relationships + Channels cell (split vertically)  
+    # Relationships + Channels cell (split vertically)
+    # Each cell should be half of 4.2 inches = 2.1 inches
     relationships_channels = Table(
         [
             [get_block("customer_relationships")],
             [get_block("channels")],
         ],
         colWidths=[col_width],
-        rowHeights=[1.5 * inch, 1.5 * inch],
+        rowHeights=[2.1 * inch, 2.1 * inch],
     )
     relationships_channels.setStyle(TableStyle([
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
@@ -205,7 +207,7 @@ def generate_bmc_pdf(user: BusinessUser) -> bytes:
             get_block("customer_segments"),
         ]],
         colWidths=[col_width] * 5,
-        rowHeights=[3 * inch],
+        rowHeights=[4.2 * inch],
     )
     top_row.setStyle(TableStyle([
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
@@ -231,7 +233,7 @@ def generate_bmc_pdf(user: BusinessUser) -> bytes:
             get_block("revenue_streams"),
         ]],
         colWidths=[half_width, half_width],
-        rowHeights=[1.2 * inch],
+        rowHeights=[1.8 * inch],
     )
     bottom_row.setStyle(TableStyle([
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
@@ -248,15 +250,100 @@ def generate_bmc_pdf(user: BusinessUser) -> bytes:
     
     elements.append(bottom_row)
     
-    # Footer
-    elements.append(Spacer(1, 0.2 * inch))
-    generated_date = datetime.now().strftime("%B %d, %Y")
-    elements.append(Paragraph(
-        f"Generated on {generated_date} | Made with BMC Town",
-        styles["footer"]
-    ))
+    # Extra Insights Section (Constraints, Preferences, Pending Topics)
+    if user.key_insights:
+        insights_data = []
+        
+        # Constraints
+        constraints = user.key_insights.constraints or []
+        if constraints:
+            constraints_text = "<br/>".join([f"• {c}" for c in constraints])
+        else:
+            constraints_text = "<i>None defined</i>"
+        insights_data.append([
+            Paragraph("<b>🚫 Constraints</b>", styles["block_title"]),
+            Paragraph(constraints_text, styles["block_content"])
+        ])
+        
+        # Preferences
+        preferences = user.key_insights.preferences or []
+        if preferences:
+            preferences_text = "<br/>".join([f"• {p}" for p in preferences])
+        else:
+            preferences_text = "<i>None defined</i>"
+        insights_data.append([
+            Paragraph("<b>⭐ Preferences</b>", styles["block_title"]),
+            Paragraph(preferences_text, styles["block_content"])
+        ])
+        
+        # Pending Topics
+        pending = user.key_insights.pending_topics or []
+        if pending:
+            pending_text = "<br/>".join([f"• {t}" for t in pending])
+        else:
+            pending_text = "<i>None defined</i>"
+        insights_data.append([
+            Paragraph("<b>❓ Pending Topics</b>", styles["block_title"]),
+            Paragraph(pending_text, styles["block_content"])
+        ])
+        
+        # Only add if there's any content
+        if constraints or preferences or pending:
+            # Add a page break before insights
+            elements.append(PageBreak())
+            
+            # Add header for insights page
+            elements.append(Paragraph("Additional Insights", styles["title"]))
+            elements.append(Spacer(1, 0.2 * inch))
+            
+            # Add insights as simple paragraphs (no grid)
+            # Style for insight headers
+            insight_header = ParagraphStyle(
+                "InsightHeader",
+                parent=base_styles["Normal"],
+                fontSize=10,
+                textColor=c_indigo,
+                spaceAfter=4,
+            )
+            insight_content = ParagraphStyle(
+                "InsightContent",
+                parent=base_styles["Normal"],
+                fontSize=9,
+                textColor=colors.HexColor("#374151"),
+                leftIndent=15,
+            )
+            
+            if constraints:
+                elements.append(Paragraph("<b>Constraints:</b>", insight_header))
+                for c in constraints:
+                    elements.append(Paragraph(f"• {c}", insight_content))
+                elements.append(Spacer(1, 0.1 * inch))
+            
+            if preferences:
+                elements.append(Paragraph("<b>Preferences:</b>", insight_header))
+                for p in preferences:
+                    elements.append(Paragraph(f"• {p}", insight_content))
+                elements.append(Spacer(1, 0.1 * inch))
+            
+            if pending:
+                elements.append(Paragraph("<b>Pending Topics:</b>", insight_header))
+                for t in pending:
+                    elements.append(Paragraph(f"• {t}", insight_content))
     
-    # Build PDF
-    doc.build(elements)
+    # Footer is drawn via onPage callback - no need to add to elements
+    generated_date = datetime.now().strftime("%B %d, %Y")
+    footer_text = f"Generated on {generated_date} | Made with BMC Town"
+    
+    def add_page_footer(canvas_obj, doc_obj):
+        """Draw footer at the bottom of each page."""
+        canvas_obj.saveState()
+        canvas_obj.setFont("Helvetica", 8)
+        canvas_obj.setFillColor(colors.HexColor("#9CA3AF"))
+        page_width = landscape(A4)[0]
+        canvas_obj.drawCentredString(page_width / 2, 0.35 * inch, footer_text)
+        canvas_obj.restoreState()
+    
+    # Build PDF with footer callback
+    doc.build(elements, onFirstPage=add_page_footer, onLaterPages=add_page_footer)
     
     return buffer.getvalue()

@@ -127,7 +127,7 @@ class ProfileManager {
       tokenInput.style.display = "block";
       tokenInput.readOnly = true;
       tokenInput.disabled = true;
-      tokenInput.style.backgroundColor = "#eee";
+      tokenInput.style.backgroundColor = "rgba(255, 255, 255, 0.05)";
       tokenInput.value = token;
     }
     if (tokenLabel) tokenLabel.style.display = "block";
@@ -147,15 +147,8 @@ class ProfileManager {
           (user.challenges || []).join(", ") || "";
         document.getElementById("goals").value =
           (user.goals || []).join(", ") || "";
-
-        // Populate Memory Fields
-        const insights = user.key_insights || {};
-        document.getElementById("constraints").value =
-          (insights.constraints || []).join(", ") || "";
-        document.getElementById("preferences").value =
-          (insights.preferences || []).join(", ") || "";
-        document.getElementById("pending_topics").value =
-          (insights.pending_topics || []).join(", ") || "";
+        // Note: Memory fields (constraints, preferences, pending_topics)
+        // are now edited in the Canvas Preview modal
       }
     } catch (error) {
       console.error("Error fetching user details:", error);
@@ -232,22 +225,9 @@ class ProfileManager {
         .filter((s) => s),
     };
 
-    // Handle Key Insights
-    const newConstraints = document
-      .getElementById("constraints")
-      .value.split(",")
-      .map((s) => s.trim())
-      .filter((s) => s);
-    const newPreferences = document
-      .getElementById("preferences")
-      .value.split(",")
-      .map((s) => s.trim())
-      .filter((s) => s);
-    const newPending = document
-      .getElementById("pending_topics")
-      .value.split(",")
-      .map((s) => s.trim())
-      .filter((s) => s);
+    // Note: Memory fields (constraints, preferences, pending_topics) are now edited
+    // in the Canvas Preview modal. On create, we start with empty memory.
+    // On edit, we preserve the existing key_insights.
 
     if (!formData.owner_name || !formData.business_name) {
       alert("Please fill in all required fields (Owner Name, Business Name).");
@@ -258,11 +238,11 @@ class ProfileManager {
       if (this.currentMode === "create") {
         formData.token = this.generateSecureToken();
         formData.role = "user";
-        // New user starts with empty memory but user-provided constraints
+        // New user starts with empty memory
         formData.key_insights = {
-            constraints: newConstraints,
-            preferences: newPreferences,
-            pending_topics: newPending,
+            constraints: [],
+            preferences: [],
+            pending_topics: [],
             canvas_state: {} // Empty canvas
         };
         
@@ -273,14 +253,12 @@ class ProfileManager {
       } else if (this.currentMode === "edit" && this.editToken) {
         formData.token = this.editToken; // Ensure token is sent
         
-        // Merge with existing canvas state to avoid data loss
-        const existingCanvas = (this.currentUser && this.currentUser.key_insights && this.currentUser.key_insights.canvas_state) || {};
-        
-        formData.key_insights = {
-            canvas_state: existingCanvas,
-            constraints: newConstraints,
-            preferences: newPreferences,
-            pending_topics: newPending
+        // Preserve existing key_insights from Canvas Preview
+        formData.key_insights = (this.currentUser && this.currentUser.key_insights) || {
+            canvas_state: {},
+            constraints: [],
+            preferences: [],
+            pending_topics: []
         };
 
         await apiService.updateBusinessUser(this.editToken, formData);

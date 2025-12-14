@@ -32,15 +32,19 @@ body {
 }
 
 #client-form {
-  background: #fff;
-  color: #333;
+  background: #1a1a2e;
+  color: #fff;
   padding: 20px 30px;
-  border-radius: 8px;
+  border-radius: 12px;
   width: 90%;
   max-width: 500px;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  border: 2px solid transparent;
+  background-image: linear-gradient(#1a1a2e, #1a1a2e), var(--brand-gradient);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
 }
 
 #client-form h3 {
@@ -59,21 +63,30 @@ body {
   margin-bottom: 5px;
   font-weight: bold;
   font-size: 0.9em;
-  color: #555;
+  color: #a855f7;
 }
 
 #client-form input,
 #client-form textarea {
   width: 95%;
   padding: 10px;
-  border: 1px solid #ccc;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 4px;
   font-size: 1em;
-  color: #333;
+  color: #fff;
+}
+
+#client-form input:focus,
+#client-form textarea:focus {
+  outline: none;
+  border-color: #a855f7;
+  box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.2);
 }
 
 #client-form input:read-only {
-  background-color: #eee;
+  background-color: rgba(255, 255, 255, 0.05);
+  color: #9ca3af;
   cursor: not-allowed;
 }
 
@@ -150,4 +163,202 @@ body {
 
 .chat-box-container::-webkit-scrollbar-thumb:hover {
     background: rgba(255, 255, 255, 0.8);
+}
+
+/* --- CANVAS PREVIEW MODAL --- */
+
+#canvas-preview-modal {
+  background: #1a1a2e;
+  color: #fff;
+  padding: 24px;
+  border-radius: 12px;
+  width: 95%;
+  max-width: 1100px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  border: 2px solid transparent;
+  background-image: linear-gradient(#1a1a2e, #1a1a2e), var(--brand-gradient);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+}
+
+#canvas-preview-title {
+  margin: 0 0 20px 0;
+  font-size: 1.5em;
+  background: var(--brand-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-align: center;
+}
+
+/* BMC Grid Layout - 5 columns for proper BMC structure */
+#canvas-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  grid-template-rows: auto auto;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.canvas-block {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 10px;
+  grid-row: span 2;
+}
+
+.canvas-block-double {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.canvas-sub-block {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 10px;
+  flex: 1;
+}
+
+.canvas-block-wide {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 10px;
+}
+
+/* Cost structure spans 2 columns, Revenue spans 3 */
+#block-cost-structure {
+  grid-column: span 2;
+}
+
+#block-revenue-streams {
+  grid-column: span 3;
+}
+
+.canvas-block h4,
+.canvas-sub-block h4,
+.canvas-block-wide h4 {
+  margin: 0 0 8px 0;
+  font-size: 0.85em;
+  color: #a855f7;
+}
+
+.canvas-block textarea,
+.canvas-sub-block textarea,
+.canvas-block-wide textarea,
+.insight-block textarea {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  color: #fff;
+  padding: 8px;
+  font-size: 0.85em;
+  resize: vertical;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.canvas-block textarea:focus,
+.canvas-sub-block textarea:focus,
+.canvas-block-wide textarea:focus,
+.insight-block textarea:focus {
+  outline: none;
+  border-color: #a855f7;
+  box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.2);
+}
+
+/* Extra Insights Section */
+#canvas-insights {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 20px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.insight-block {
+  background: rgba(99, 102, 241, 0.1);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.insight-block h4 {
+  margin: 0 0 8px 0;
+  font-size: 0.85em;
+  color: #6366f1;
+}
+
+/* Modal Buttons */
+.modal-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.modal-buttons button {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.95em;
+  font-weight: bold;
+  transition: all 0.2s ease;
+}
+
+.btn-primary {
+  background: var(--brand-gradient);
+  color: white;
+}
+
+.btn-primary:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+}
+
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.btn-cancel {
+  background: rgba(107, 114, 128, 0.5);
+  color: white;
+}
+
+.btn-cancel:hover {
+  background: rgba(107, 114, 128, 0.7);
+}
+
+/* Responsive adjustments */
+@media (max-width: 800px) {
+  #canvas-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .canvas-block {
+    grid-row: span 1;
+  }
+  
+  #block-cost-structure,
+  #block-revenue-streams {
+    grid-column: span 1;
+  }
+  
+  #canvas-insights {
+    grid-template-columns: 1fr;
+  }
 }

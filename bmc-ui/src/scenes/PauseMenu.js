@@ -1,5 +1,6 @@
 import { Scene } from "phaser";
 import ApiService from "../services/ApiService";
+import canvasPreview from "../services/CanvasPreview";
 
 export class PauseMenu extends Scene {
   constructor() {
@@ -230,15 +231,18 @@ export class PauseMenu extends Scene {
     }
 
     try {
-      // Show loading feedback
-      alert("Generating your Business Model Canvas PDF...");
+      // Initialize canvas preview if not already done
+      canvasPreview.init();
       
-      await ApiService.downloadBMCPdf(token);
+      // Show the preview modal (fetches data and displays it)
+      await canvasPreview.show(token, () => {
+        // Optional: callback when modal closes
+        console.log("Canvas preview closed");
+      });
       
-      console.log("Canvas PDF exported successfully");
     } catch (error) {
-      console.error("Failed to export canvas:", error);
-      alert("Failed to export canvas. Please try again.\\n\\n" + error.message);
+      console.error("Failed to show canvas preview:", error);
+      alert("Failed to load canvas. Please try again.\\n\\n" + error.message);
     }
   }
 }
