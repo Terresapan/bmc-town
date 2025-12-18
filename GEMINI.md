@@ -1,6 +1,6 @@
 # Project Overview
 
-This project is a course on building AI agents called "PhiloAgents". It consists of a Python backend (`bmc-api`) and a JavaScript-based game UI (`bmc-ui`).
+This project is a course on building AI agents called "BMC Town". It consists of a Python backend (`bmc-api`) and a JavaScript-based game UI (`bmc-ui`).
 
 The backend is a **FastAPI** application that leverages **LangGraph** to orchestrate stateful, multimodal agent workflows. It uses **Google's Gemini** models for generation and **LangSmith** for observability and evaluation.
 The frontend is a web-based game built with the **Phaser** game framework, allowing users to interact with "Business Experts" in a virtual world.

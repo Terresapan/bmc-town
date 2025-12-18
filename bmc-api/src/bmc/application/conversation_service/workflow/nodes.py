@@ -1,10 +1,11 @@
-from langchain_core.messages import RemoveMessage, AIMessage, HumanMessage, BaseMessage
+from langchain_core.messages import RemoveMessage, AIMessage, AIMessageChunk, HumanMessage, BaseMessage
 from langchain_core.runnables import RunnableConfig
 import base64
 import filetype
 from jinja2 import Template
 from langsmith import traceable
 from google.genai import types
+from typing import AsyncGenerator
 
 from bmc.application.conversation_service.workflow.chains import (
     get_business_conversation_summary_chain,
@@ -112,15 +113,41 @@ def _convert_to_native_content(
     
     return native_contents
 
-@traceable(name="native_gemini_generate", run_type="llm")
-async def _generate_with_native_sdk(client, model_name, contents, config):
-    """Wrapped generation call for LangSmith tracing."""
-    return await client.aio.models.generate_content(
+@traceable(name="native_gemini_generate_stream", run_type="llm")
+async def _generate_with_native_sdk_stream(
+    client, 
+    model_name: str, 
+    contents, 
+    config
+) -> AsyncGenerator[tuple[str, dict], None]:
+    """Streaming generation call with token usage tracking.
+    
+    Uses generate_content_stream for true token-by-token streaming.
+    Yields (text_chunk, usage_metadata) tuples as they arrive from the Gemini API.
+    
+    The final chunk contains usage_metadata with token counts.
+    """
+    usage_metadata = {}
+    
+    async for chunk in await client.aio.models.generate_content_stream(
         model=model_name,
         contents=contents,
         config=config
-    )
+    ):
+        # Capture usage metadata if present (typically in final chunk)
+        if hasattr(chunk, 'usage_metadata') and chunk.usage_metadata:
+            usage_metadata = {
+                "input_tokens": getattr(chunk.usage_metadata, 'prompt_token_count', 0),
+                "output_tokens": getattr(chunk.usage_metadata, 'candidates_token_count', 0),
+                "total_tokens": getattr(chunk.usage_metadata, 'total_token_count', 0),
+                "model": model_name,
+            }
+        
+        # Extract text from streaming chunk
+        if chunk.text:
+            yield (chunk.text, usage_metadata)
 
+@traceable(name="file_processing_node", run_type="chain")
 async def file_processing_node(state: BusinessCanvasState):
     """Handle PDF and image processing validation within the LangGraph workflow.
     
@@ -211,11 +238,15 @@ async def file_processing_node(state: BusinessCanvasState):
     }
 
 
+@traceable(name="business_conversation_node", run_type="chain")
 async def business_conversation_node(state: BusinessCanvasState, config: RunnableConfig):
-    """Business canvas expert conversation node using Native Gemini SDK.
+    """Business canvas expert conversation node using Native Gemini SDK with streaming.
     
     Replaces LangChain wrapper to enable Native Grounding (Google Search)
     and Native Multimodal support without abstraction layers.
+    
+    This is an async generator that yields AIMessageChunk objects for true
+    token-by-token streaming in LangGraph.
     """
     summary = state.get("summary", "")
 
@@ -256,7 +287,7 @@ async def business_conversation_node(state: BusinessCanvasState, config: Runnabl
         image_base64
     )
 
-    # 4. Call Native SDK
+    # 4. Call Native SDK with Streaming
     client = get_native_client()
     
     # Configure tools: Native Google Search Grounding
@@ -268,37 +299,52 @@ async def business_conversation_node(state: BusinessCanvasState, config: Runnabl
     }
 
     try:
-        logger.info("Invoking Native Gemini SDK with Grounding enabled")
-        response = await _generate_with_native_sdk(
+        logger.info("Invoking Native Gemini SDK with Streaming and Grounding enabled")
+        
+        # Accumulate the full response for state update
+        full_response_text = ""
+        final_usage_metadata = {}
+        
+        # Stream chunks as AIMessageChunk for LangGraph compatibility
+        async for text_chunk, usage_metadata in _generate_with_native_sdk_stream(
             client=client,
             model_name=settings.GEMINI_LLM_MODEL,
             contents=native_contents,
             config=tool_config
-        )
+        ):
+            full_response_text += text_chunk
+            # Capture usage metadata (updated with each chunk, final value is accurate)
+            if usage_metadata:
+                final_usage_metadata = usage_metadata
+            # Yield AIMessageChunk for streaming - LangGraph will emit these
+            yield {
+                "messages": [AIMessageChunk(content=text_chunk)],
+            }
         
-        # 5. Handle Response
-        # Extract text. The SDK usually handles citation merging in .text
-        # If grounding metadata exists, it is in response.candidates[0].grounding_metadata
-        final_text = response.text
+        # Log token usage for observability
+        if final_usage_metadata:
+            logger.info(f"🔢 Token Usage - Input: {final_usage_metadata.get('input_tokens', 0)}, "
+                       f"Output: {final_usage_metadata.get('output_tokens', 0)}, "
+                       f"Total: {final_usage_metadata.get('total_tokens', 0)}")
         
-        # Optional: Append citation notice if grounding happened?
-        # For now, we trust .text contains the answer.
-        
-        return {
-            "messages": [AIMessage(content=final_text)],
+        # After streaming completes, yield final state update with complete message
+        # This ensures checkpoint saves the full message
+        yield {
+            "messages": [AIMessage(content=full_response_text)],
             "image_name": state.get("image_name"),
             "pdf_name": state.get("pdf_name"),
         }
 
     except Exception as e:
-        logger.error(f"Native SDK Generation failed: {e}")
-        return {
+        logger.error(f"Native SDK Streaming Generation failed: {e}")
+        yield {
             "messages": [AIMessage(content="I apologize, but I encountered an error connecting to my knowledge base.")],
             "image_name": state.get("image_name"),
             "pdf_name": state.get("pdf_name"),
         }
 
 
+@traceable(name="business_summarize_conversation_node", run_type="chain")
 async def business_summarize_conversation_node(state: BusinessCanvasState):
     """Business expert conversation summary node."""
     summary = state.get("summary", "")

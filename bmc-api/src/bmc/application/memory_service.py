@@ -63,6 +63,51 @@ Only extract facts that the user has EXPLICITLY stated or agreed to.
 #### Rule 5: Minimalism
 If the conversation was just chit-chat ("Hello", "Thanks", "Goodbye"), return the EXISTING MEMORY exactly as is. Do NOT hallucinate updates.
 
+#### Rule 6: Value Proposition Format (CRITICAL)
+For `value_propositions` ONLY, you MUST use the following structured format (NO BULLET POINTS):
+**Format**: "FOR [target customer], WE DELIVER [benefit/product], BY [method/feature], SO THAT [outcome/emotional benefit]"
+
+**Example**:
+"FOR clients who want to give a high-end gift with ease, WE DELIVER beautifully presented flowers, BY using premium packaging, SO THAT the recipient feels special and the giver feels confident and relieved."
+
+If the existing value proposition is incomplete, REFINE and UPDATE it as new information emerges in the conversation.
+The value proposition should evolve and get better with each conversation turn as more details are agreed upon.
+There should only be ONE value proposition entry (the latest, most complete version), not multiple bullet points.
+
+#### Rule 7: Pending Topics Lifecycle (CRITICAL - MUST CHECK CAREFULLY)
+`pending_topics` is a WORKING MEMORY that must be actively managed.
+
+**IMPORTANT: For EVERY extraction, you MUST:**
+1. Review EACH item in the EXISTING `pending_topics` list
+2. Check if the RECENT CONVERSATION addresses, resolves, or decides that topic
+3. Use **semantic matching** (not exact string matching) - the topic might be worded differently
+
+**WHEN TO REMOVE a pending topic:**
+- User makes ANY decision related to the topic (even partially)
+- User explicitly states a preference: "definitely X", "I prefer Y", "let's go with Z"
+- User rejects an option: "not X", "no, we won't do Y"
+- The conversation discusses and concludes the topic
+- A fact was added to `canvas_state` or `constraints` that resolves this topic
+
+**SEMANTIC MATCHING EXAMPLES:**
+- Pending: "Distinguish between flowers for self vs. gifting" → REMOVE if user says "we're focusing on gifts"
+- Pending: "Occasions for gifting" → REMOVE if user discusses "corporate gifts", "milestones", etc.
+- Pending: "Specific problem solved for customer segments" → REMOVE if user defines their value proposition
+
+**Example - Adding a pending topic**:
+Expert: "Should we target corporate gifting or personal use?"
+User: "Let me think about that..."
+OUTPUT: Add "Decide between corporate gifting vs personal use" to `pending_topics`.
+
+**Example - Removing a pending topic (SEMANTIC MATCH)**:
+EXISTING MEMORY: pending_topics = ["Distinguish between purchasing flowers for self vs. gifting for client"]
+CONVERSATION:
+User: "Our focus is definitely on gifting. People buying for themselves is a completely different market we're not interested in."
+OUTPUT: 
+- REMOVE "Distinguish between purchasing flowers for self vs. gifting for client" from `pending_topics` (user decided: gifting only)
+- ADD "Gift purchasers" to `customer_segments`
+- ADD "No self-purchase market" to `constraints`
+
 ---
 ### FEW-SHOT EXAMPLES:
 
@@ -105,11 +150,33 @@ User: "Actually, I've changed my mind. I want to target Millennials instead."
 
 OUTPUT: REPLACE customer_segments with ["Millennials"]. The old value is overwritten.
 
+#### Example 6: Value Proposition Evolution
+EXISTING MEMORY: value_propositions = ["FOR busy professionals, WE DELIVER ..., BY ..., SO THAT ..."]
+CONVERSATION:
+Expert: "So your premium packaging makes recipients feel special?"
+User: "Yes, exactly! And it gives peace of mind to the giver - they know it'll look amazing."
+
+OUTPUT: Update value_propositions to:
+["FOR busy professionals who want to impress, WE DELIVER premium flower arrangements, BY using elegant packaging and presentation, SO THAT recipients feel valued and givers have peace of mind."]
+
+#### Example 7: Pending Topic Resolution
+EXISTING MEMORY: pending_topics = ["Distinguish between flowers for self vs. gifting"]
+CONVERSATION:
+Expert: "Have you decided whether to focus on self-purchase or gifting?"
+User: "Yes, definitely gifting. People buying for themselves is not our market."
+
+OUTPUT:
+- REMOVE "Distinguish between flowers for self vs. gifting" from `pending_topics`
+- ADD "Gift purchasers only, not self-buyers" to `customer_segments`
+- ADD "No self-purchase market" to `constraints`
+
 ---
 ### OUTPUT FORMAT
 Return ONLY valid JSON matching the `BusinessInsights` schema structure. No markdown formatting.
 IMPORTANT: `canvas_state` values must be LISTS OF STRINGS. Do not use objects/dictionaries inside the lists.
+For `value_propositions`: Use the structured "FOR..., WE DELIVER..., BY..., SO THAT..." format as a single string.
 Example: "customer_segments": ["Gen Z Gamers", "Retro enthusiasts"]
+Example: "value_propositions": ["FOR busy professionals, WE DELIVER convenience, BY offering same-day delivery, SO THAT they never miss important occasions."]
 """
 
 class MemoryService:

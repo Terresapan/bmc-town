@@ -183,6 +183,7 @@ async def get_business_streaming_response(
             db_name=settings.MONGODB_DB_NAME,
             checkpoint_collection_name=settings.MONGO_STATE_CHECKPOINT_COLLECTION,
             writes_collection_name=settings.MONGO_STATE_WRITES_COLLECTION,
+            ttl=3600,
         ) as checkpointer:
             graph = graph_builder.compile(checkpointer=checkpointer)
 
