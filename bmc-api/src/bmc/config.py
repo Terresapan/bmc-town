@@ -42,6 +42,9 @@ class Settings(BaseSettings):
     MONGO_STATE_CHECKPOINT_COLLECTION: str = "checkpoints"
     MONGO_STATE_WRITES_COLLECTION: str = "checkpoint_writes"
 
+    # --- Admin Configuration ---
+    ADMIN_TOKEN: str
+
     @model_validator(mode='after')
     def configure_environment(self):
         # Auto-detect Cloud Run if ENV not explicitly set to production

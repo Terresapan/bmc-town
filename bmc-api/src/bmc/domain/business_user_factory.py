@@ -241,7 +241,7 @@ class BusinessUserFactory:
         Returns:
             True if valid, False otherwise
         """
-        expected_token = os.getenv("ADMIN_TOKEN", "philoagents-admin-token")
+        expected_token = settings.ADMIN_TOKEN
         return admin_token == expected_token
 
     # --- UPDATE ---
