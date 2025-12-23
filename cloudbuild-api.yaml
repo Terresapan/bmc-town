@@ -22,7 +22,7 @@ steps:
     args:
       - "run"
       - "deploy"
-      - "philoagents-api"
+      - "bmc-api"
       - "--image"
       - "us-central1-docker.pkg.dev/$PROJECT_ID/bmc-repo/bmc-api:latest"
       - "--platform"
@@ -30,6 +30,7 @@ steps:
       - "--region"
       - "us-central1"
       - "--allow-unauthenticated"
+      - "--service-account=identity-backend@geminiapirelated.iam.gserviceaccount.com"
       - "--port"
       - "8080"
       - "--set-secrets=LANGSMITH_API_KEY=LANGSMITH_API_KEY:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest,MONGODB_URI=MONGODB_URI_PROD:latest,ADMIN_TOKEN=ADMIN_TOKEN:latest"

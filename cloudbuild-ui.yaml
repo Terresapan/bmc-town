@@ -26,7 +26,7 @@ steps:
     args:
       - "run"
       - "deploy"
-      - "philoagents-ui"
+      - "bmc-ui"
       - "--image"
       - "us-central1-docker.pkg.dev/$PROJECT_ID/bmc-repo/bmc-ui:latest"
       - "--platform"
@@ -34,6 +34,7 @@ steps:
       - "--region"
       - "us-central1"
       - "--allow-unauthenticated"
+      - "--service-account=identity-frontend@geminiapirelated.iam.gserviceaccount.com"
       - "--port"
       - "8080"
 images:
@@ -41,5 +42,5 @@ images:
 options:
   logging: CLOUD_LOGGING_ONLY
 substitutions:
-  _API_URL: "https://philoagents-api-635390037922.us-central1.run.app"
+  _API_URL: "https://bmc-api-635390037922.us-central1.run.app"
 
