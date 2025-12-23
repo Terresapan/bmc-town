@@ -44,17 +44,29 @@ class ApiService {
       const protocol = window.location.protocol;
       const hostname = window.location.hostname;
 
-      if (hostname.includes("philoagents-ui-")) {
+      if (hostname.includes("bmc-ui-")) {
         // We're on the UI service, switch to API service
+        const apiHostname = hostname.replace(
+          "bmc-ui-",
+          "bmc-api-"
+        );
+        this.apiUrl = `${protocol}//${apiHostname}`;
+        console.log("Detected UI service, using API service URL:", this.apiUrl);
+      } else if (hostname.includes("bmc-api-")) {
+        // Already on API service
+        console.log("Already on API service hostname:", hostname);
+        this.apiUrl = `${protocol}//${hostname}`;
+      } else if (hostname.includes("philoagents-ui-")) {
+        // Legacy support: We're on the old UI service, switch to old API service
         const apiHostname = hostname.replace(
           "philoagents-ui-",
           "philoagents-api-"
         );
         this.apiUrl = `${protocol}//${apiHostname}`;
-        console.log("Detected UI service, using API service URL:", this.apiUrl);
+        console.log("Detected legacy UI service, using legacy API service URL:", this.apiUrl);
       } else if (hostname.includes("philoagents-api-")) {
-        // Already on API service
-        console.log("Already on API service hostname:", hostname);
+        // Already on legacy API service
+        console.log("Already on legacy API service hostname:", hostname);
         this.apiUrl = `${protocol}//${hostname}`;
       } else {
         // Fallback for other production environments
