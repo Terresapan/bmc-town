@@ -35,8 +35,8 @@ class ApiService {
       window.location.hostname === "127.0.0.1" ||
       window.location.hostname === "0.0.0.0"
     ) {
-      console.log("Development localhost mode - using localhost:8000");
-      this.apiUrl = "http://localhost:8000";
+      console.log("Development localhost mode - using localhost:8001");
+      this.apiUrl = "http://localhost:8001";
     } else {
       console.log("Production mode detected");
 
@@ -66,7 +66,7 @@ class ApiService {
     // Fallback if somehow still undefined
     if (!this.apiUrl) {
       console.warn("API URL is undefined, using fallback!");
-      this.apiUrl = "http://localhost:8000";
+      this.apiUrl = "http://localhost:8001";
       console.log("Fallback API URL:", this.apiUrl);
     }
 

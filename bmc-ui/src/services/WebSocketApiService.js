@@ -11,11 +11,11 @@ class WebSocketApiService {
       const isHttps = window.location.protocol === "https:";
       if (isHttps) {
         const currentHostname = window.location.hostname;
-        this.baseUrl = `https://${currentHostname.replace("8080", "8000")}`;
-        this.wsUrl = `wss://${currentHostname.replace("8080", "8000")}`;
+        this.baseUrl = `https://${currentHostname.replace("8080", "8001")}`;
+        this.wsUrl = `wss://${currentHostname.replace("8080", "8001")}`;
       } else {
-        this.baseUrl = "http://localhost:8000";
-        this.wsUrl = "ws://localhost:8000";
+        this.baseUrl = "http://localhost:8001";
+        this.wsUrl = "ws://localhost:8001";
       }
     }
     console.log("Using WebSocket Base URL:", this.baseUrl);
@@ -36,10 +36,10 @@ class WebSocketApiService {
     if (isHttps) {
       console.log("Using GitHub Codespaces");
       const currentHostname = window.location.hostname;
-      return `wss://${currentHostname.replace("8080", "8000")}`;
+      return `wss://${currentHostname.replace("8080", "8001")}`;
     }
 
-    return "ws://localhost:8000";
+    return "ws://localhost:8001";
   }
 
   connect(endpoint = "/ws/chat") {
