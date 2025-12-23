@@ -59,7 +59,8 @@ app = FastAPI(lifespan=lifespan)
 # CORS configuration - allow specific origins when credentials are enabled
 # Get allowed origins from environment or use defaults
 allowed_origins = [
-    "https://philoagents-ui-635390037922.us-central1.run.app",
+    "https://bmc-ui-635390037922.us-central1.run.app",  # New BMC UI
+    "https://philoagents-ui-635390037922.us-central1.run.app",  # Legacy UI
     "http://localhost:8080",
     "http://127.0.0.1:8080",
 ]
