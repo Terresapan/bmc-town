@@ -1,4 +1,5 @@
 from typing import List, Dict, Optional
+from dataclasses import dataclass, field
 import json
 import logging
 
@@ -8,6 +9,61 @@ from bmc.config import settings
 from bmc.domain.business_user import BusinessInsights
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class MemoryExtractionResult:
+    """Result of memory extraction including what changed."""
+    updated_insights: BusinessInsights
+    delta: Dict = field(default_factory=dict)
+    has_changes: bool = False
+    
+    @staticmethod
+    def compute_delta(
+        old_insights: BusinessInsights, 
+        new_insights: BusinessInsights
+    ) -> Dict:
+        """
+        Compute what changed between old and new insights.
+        
+        Returns:
+            Dict with 'added', 'removed', 'modified' keys for each canvas block.
+        """
+        delta = {"added": {}, "removed": {}, "modified": {}}
+        
+        old_canvas = old_insights.canvas_state
+        new_canvas = new_insights.canvas_state
+        
+        # Compare each canvas block
+        for block in old_canvas.keys():
+            old_items = set(old_canvas.get(block, []))
+            new_items = set(new_canvas.get(block, []))
+            
+            added = new_items - old_items
+            removed = old_items - new_items
+            
+            if added:
+                delta["added"][block] = list(added)
+            if removed:
+                delta["removed"][block] = list(removed)
+        
+        # Compare constraints
+        old_constraints = set(old_insights.constraints)
+        new_constraints = set(new_insights.constraints)
+        if new_constraints - old_constraints:
+            delta["added"]["constraints"] = list(new_constraints - old_constraints)
+        if old_constraints - new_constraints:
+            delta["removed"]["constraints"] = list(old_constraints - new_constraints)
+        
+        # Compare pending topics
+        old_pending = set(old_insights.pending_topics)
+        new_pending = set(new_insights.pending_topics)
+        if new_pending - old_pending:
+            delta["added"]["pending_topics"] = list(new_pending - old_pending)
+        if old_pending - new_pending:
+            delta["removed"]["pending_topics"] = list(old_pending - new_pending)
+        
+        return delta
 
 # Define the Prompt for Fact Extraction
 _FACT_EXTRACTION_PROMPT = """
@@ -108,6 +164,22 @@ OUTPUT:
 - ADD "Gift purchasers" to `customer_segments`
 - ADD "No self-purchase market" to `constraints`
 
+#### Rule 8: System Suggestions ([SYS] Entries)
+`pending_topics` may contain system-generated suggestions prefixed with "[SYS]".
+These are cross-canvas insights added by the Proactive Advisor.
+
+**IDENTIFICATION:**
+Entries starting with "[SYS]" are system suggestions. Example: "[SYS] Consider 'Direct Sales' in Channels for Enterprise segment."
+
+**HANDLING [SYS] ENTRIES:**
+- **IF USER CONFIRMS**: Remove the [SYS] entry from `pending_topics` and ADD the confirmed fact to the appropriate `canvas_state` block.
+  - Example: User says "Yes, let's add direct sales" → Move "Direct Sales" to `canvas_state.channels`
+- **IF USER REJECTS**: Remove the [SYS] entry from `pending_topics`. Do NOT add to canvas_state or constraints.
+  - Example: User says "No, we'll stick with online only" → Just remove the [SYS] entry
+- **IF NOT ADDRESSED**: Keep the [SYS] entry in `pending_topics` for future sessions.
+
+**IMPORTANT:** Never move a [SYS] suggestion to `canvas_state` unless the user explicitly confirms it.
+
 ---
 ### FEW-SHOT EXAMPLES:
 
@@ -193,10 +265,20 @@ class MemoryService:
         existing_insights: BusinessInsights, 
         messages: List[BaseMessage],
         user_token: str = "unknown"
-    ) -> BusinessInsights:
+    ) -> MemoryExtractionResult:
         """
         Extracts business facts from the conversation and updates the insights.
+        
+        Returns:
+            MemoryExtractionResult containing updated insights and the delta.
         """
+        # Default result (no changes)
+        no_change_result = MemoryExtractionResult(
+            updated_insights=existing_insights,
+            delta={},
+            has_changes=False
+        )
+        
         try:
             # 1. Format Conversation History
             conversation_text = ""
@@ -218,7 +300,7 @@ class MemoryService:
             response = await self.llm.ainvoke(
                 prompt,
                 config={
-                    "tags": ["memory_extraction", "background_task"],
+                    "tags": ["memory_extraction", "in_graph"],
                     "metadata": {
                         "user_token": user_token,
                         "service": "MemoryService"
@@ -234,32 +316,43 @@ class MemoryService:
                     data = json.loads(cleaned_content)
                     updated_insights = BusinessInsights(**data)
                     
-                    if updated_insights.model_dump() != existing_insights.model_dump():
-                        logger.info("🧠 Memory Service: Insights updated based on conversation.")
+                    # Compute delta
+                    delta = MemoryExtractionResult.compute_delta(existing_insights, updated_insights)
+                    has_changes = bool(delta.get("added") or delta.get("removed"))
+                    
+                    if has_changes:
+                        logger.info(f"🧠 Memory Service: Insights updated. Delta: {delta}")
                     else:
                         logger.info("🧠 Memory Service: No new insights found.")
                         
-                    return updated_insights
+                    return MemoryExtractionResult(
+                        updated_insights=updated_insights,
+                        delta=delta,
+                        has_changes=has_changes
+                    )
 
                 except json.JSONDecodeError:
                     logger.error(f"Failed to parse JSON from Memory Service: {response_content}")
-                    return existing_insights
+                    return no_change_result
                 except Exception as e:
                      logger.error(f"Validation Error in Memory Service: {e}")
-                     return existing_insights
+                     return no_change_result
             
-            return existing_insights
+            return no_change_result
 
         except Exception as e:
             logger.error(f"Error in MemoryService.extract_business_facts: {e}")
-            return existing_insights
+            return no_change_result
 
-    async def update_user_memory(self, user_token: str, messages: List[BaseMessage]):
+    async def update_user_memory(self, user_token: str, messages: List[BaseMessage]) -> Optional[MemoryExtractionResult]:
         """
-        Main entry point for the Background Task.
+        Main entry point for the Background Task (legacy) or direct calls.
         1. Loads the user.
-        2. extracts facts.
+        2. Extracts facts.
         3. Updates the DB.
+        
+        Returns:
+            MemoryExtractionResult if successful, None if user not found.
         """
         from bmc.domain.business_user_factory import BusinessUserFactory
         
@@ -270,22 +363,27 @@ class MemoryService:
             user = await factory.get_user_by_token(user_token)
             if not user:
                 logger.warning(f"Memory Service: User not found for token {user_token}")
-                return
+                return None
 
             # 2. Extract Facts
-            updated_insights = await self.extract_business_facts(
+            result = await self.extract_business_facts(
                 existing_insights=user.key_insights,
                 messages=messages,
                 user_token=user_token
             )
 
             # 3. Update DB (Only if changed)
-            if updated_insights != user.key_insights:
-                user.key_insights = updated_insights
+            if result.has_changes:
+                user.key_insights = result.updated_insights
                 await factory.update_user(user_token, user)
                 logger.info(f"💾 Memory Service: Persisted updates for user {user.business_name}")
+            
+            return result
 
         except Exception as e:
-            logger.error(f"CRITICAL: Failed to update user memory in background task: {e}")
+            logger.error(f"CRITICAL: Failed to update user memory: {e}")
+            return None
+
 
 memory_service = MemoryService()
+

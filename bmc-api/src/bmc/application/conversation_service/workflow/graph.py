@@ -10,6 +10,8 @@ from bmc.application.conversation_service.workflow.nodes import (
     business_conversation_node,
     business_summarize_conversation_node,
     file_processing_node,
+    memory_extraction_node,
+    proactive_suggestion_node,
 )
 from bmc.application.conversation_service.workflow.state import BusinessCanvasState
 from bmc.config import settings
@@ -29,12 +31,20 @@ def has_files_to_process(state: BusinessCanvasState) -> Literal["file_processing
 
 @lru_cache(maxsize=1)
 def create_business_workflow_graph():
-    """Create the Business Model Canvas workflow graph with integrated file processing."""
+    """Create the Business Model Canvas workflow graph with integrated file processing.
+    
+    Flow (Proactive Architecture):
+    START -> file_processing_node -> business_conversation_node 
+          -> memory_extraction_node -> proactive_suggestion_node 
+          -> should_summarize? -> [business_summarize_conversation_node | END]
+    """
     graph_builder = StateGraph(BusinessCanvasState)
 
     # Add all nodes
     graph_builder.add_node("file_processing_node", file_processing_node)
     graph_builder.add_node("business_conversation_node", business_conversation_node)
+    graph_builder.add_node("memory_extraction_node", memory_extraction_node)
+    graph_builder.add_node("proactive_suggestion_node", proactive_suggestion_node)
     graph_builder.add_node("business_summarize_conversation_node", business_summarize_conversation_node)
 
     # Define the business workflow flow
@@ -48,10 +58,14 @@ def create_business_workflow_graph():
         }
     )
     
-    # Linear flow: Conversation -> Summarize Check -> [End, Summarize]
-    # We removed the Tool Loop because Native Grounding handles search internally.
+    # NEW PROACTIVE FLOW:
+    # Conversation -> Memory Extraction -> Proactive Suggestion -> Summarize Check
+    graph_builder.add_edge("business_conversation_node", "memory_extraction_node")
+    graph_builder.add_edge("memory_extraction_node", "proactive_suggestion_node")
+    
+    # Summarize check now happens after proactive suggestion
     graph_builder.add_conditional_edges(
-        "business_conversation_node", 
+        "proactive_suggestion_node", 
         should_summarize_business_conversation
     )
     
@@ -62,4 +76,3 @@ def create_business_workflow_graph():
 
 # Primary graph for Business Model Canvas 
 graph = create_business_workflow_graph().compile()
-
