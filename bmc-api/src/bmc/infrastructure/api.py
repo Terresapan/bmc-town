@@ -7,7 +7,10 @@ from fastapi.responses import StreamingResponse
 
 from pydantic import BaseModel
 
-from bmc.application.conversation_service.business_workflow_response import (\n    get_business_response,\n    get_business_streaming_response,\n)
+from bmc.application.conversation_service.business_workflow_response import (
+    get_business_response,
+    get_business_streaming_response,
+)
 from bmc.domain.business_expert_factory import BusinessExpertFactory
 from bmc.domain.business_user_factory import (
     BusinessUserFactory,
