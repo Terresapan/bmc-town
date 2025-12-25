@@ -172,9 +172,10 @@ class ApiService {
    * @param {string} message - The user's message.
    * @param {string} userToken - The user's token.
    * @param {Function} onChunk - Callback for each text chunk received.
+   * @param {Function} [onProactiveSuggestion] - Optional callback for proactive suggestions.
    * @returns {Promise<void>}
    */
-  async streamBusinessMessage(expert, message, userToken, onChunk) {
+  async streamBusinessMessage(expert, message, userToken, onChunk, onProactiveSuggestion = null) {
     try {
       console.log("Streaming business message:", { expert, message, userToken });
 
@@ -218,15 +219,63 @@ class ApiService {
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder("utf-8");
+      
+      // Buffer to accumulate chunks in case marker spans multiple chunks
+      let buffer = "";
+      const PROACTIVE_MARKER_START = "[PROACTIVE_SUGGESTION]";
+      const PROACTIVE_MARKER_END = "[/PROACTIVE_SUGGESTION]";
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
         
         const chunk = decoder.decode(value, { stream: true });
-        if (chunk) {
-          onChunk(chunk);
+        buffer += chunk;
+        
+        // Check if we have a complete proactive suggestion marker
+        const markerStart = buffer.indexOf(PROACTIVE_MARKER_START);
+        
+        if (markerStart !== -1) {
+          const markerEnd = buffer.indexOf(PROACTIVE_MARKER_END);
+          
+          if (markerEnd !== -1) {
+            // We have a complete marker - extract and process
+            const beforeMarker = buffer.substring(0, markerStart);
+            const suggestionContent = buffer.substring(
+              markerStart + PROACTIVE_MARKER_START.length, 
+              markerEnd
+            );
+            
+            // Send any text before the marker
+            if (beforeMarker.trim()) {
+              onChunk(beforeMarker);
+            }
+            
+            // Parse the suggestion (format: "suggestion text|target_block")
+            if (suggestionContent && onProactiveSuggestion) {
+              const [suggestion, targetBlock] = suggestionContent.split("|");
+              onProactiveSuggestion({
+                suggestion: suggestion.trim(),
+                targetBlock: targetBlock ? targetBlock.trim() : null
+              });
+            }
+            
+            // Clear the buffer after processing the marker
+            buffer = buffer.substring(markerEnd + PROACTIVE_MARKER_END.length);
+          }
+          // If marker started but not ended, keep buffering
+        } else {
+          // No marker found, safe to send the buffered chunk
+          if (buffer) {
+            onChunk(buffer);
+            buffer = "";
+          }
         }
+      }
+      
+      // Send any remaining buffer content
+      if (buffer.trim()) {
+        onChunk(buffer);
       }
 
     } catch (error) {

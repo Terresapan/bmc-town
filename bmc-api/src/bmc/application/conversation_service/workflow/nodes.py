@@ -369,3 +369,119 @@ async def business_summarize_conversation_node(state: BusinessCanvasState):
         "pdf_name": state.get("pdf_name"),      # Preserve pdf_name
     }
 
+
+@traceable(name="memory_extraction_node", run_type="chain")
+async def memory_extraction_node(state: BusinessCanvasState):
+    """Extract business facts from the conversation and update user memory.
+    
+    This node:
+    1. Loads the user from the database.
+    2. Extracts facts from the conversation using the MemoryService.
+    3. Updates the database with any changes.
+    4. Returns the delta (what changed) for the proactive node.
+    """
+    from bmc.application.memory_service import memory_service
+    
+    user_token = state.get("user_token")
+    if not user_token:
+        logger.warning("Memory Extraction: No user token in state, skipping.")
+        return {"memory_delta": None}
+    
+    try:
+        # Get messages from state
+        messages = state.get("messages", [])
+        if not messages:
+            logger.debug("Memory Extraction: No messages in state, skipping.")
+            return {"memory_delta": None}
+        
+        # Extract facts and update DB
+        result = await memory_service.update_user_memory(
+            user_token=user_token,
+            messages=messages
+        )
+        
+        if result and result.has_changes:
+            logger.info(f"🧠 Memory Extraction Node: Delta computed - {result.delta}")
+            return {
+                "memory_delta": result.delta,
+            }
+        else:
+            logger.debug("Memory Extraction Node: No changes detected.")
+            return {"memory_delta": None}
+            
+    except Exception as e:
+        logger.error(f"Memory Extraction Node Error: {e}")
+        return {"memory_delta": None}
+
+
+@traceable(name="proactive_suggestion_node", run_type="chain")
+async def proactive_suggestion_node(state: BusinessCanvasState):
+    """Generate cross-canvas suggestions based on memory delta.
+    
+    This node:
+    1. Checks if there was a memory delta from the previous node.
+    2. If so, generates a proactive suggestion using the ProactiveService.
+    3. If the suggestion is valuable, adds it to pending_topics.
+    4. Returns the suggestion for the API to deliver via UI.
+    """
+    from bmc.application.proactive_service import proactive_service
+    from bmc.domain.business_user_factory import BusinessUserFactory
+    
+    memory_delta = state.get("memory_delta")
+    user_token = state.get("user_token")
+    
+    # Fast path: No delta, no suggestion
+    if not memory_delta or not user_token:
+        logger.debug("Proactive Suggestion Node: No delta or user token, skipping.")
+        return {
+            "proactive_suggestion": None,
+            "proactive_target_block": None,
+        }
+    
+    try:
+        # Load user to get current canvas state and sector
+        factory = BusinessUserFactory()
+        user = await factory.get_user_by_token(user_token)
+        
+        if not user:
+            logger.warning("Proactive Suggestion Node: User not found.")
+            return {
+                "proactive_suggestion": None,
+                "proactive_target_block": None,
+            }
+        
+        # Generate suggestion
+        suggestion_result = await proactive_service.generate_suggestion(
+            delta=memory_delta,
+            canvas_state=user.key_insights.canvas_state,
+            sector=user.sector,
+            user_token=user_token
+        )
+        
+        if suggestion_result.should_show:
+            logger.info(f"💡 Proactive Suggestion Node: Generated suggestion for {suggestion_result.target_block}")
+            
+            # Add to pending_topics with [SYS] prefix for staging
+            sys_topic = f"[SYS] {suggestion_result.suggestion}"
+            if sys_topic not in user.key_insights.pending_topics:
+                user.key_insights.pending_topics.append(sys_topic)
+                await factory.update_user(user_token, user)
+                logger.info(f"💾 Proactive Suggestion Node: Added to pending_topics")
+            
+            return {
+                "proactive_suggestion": suggestion_result.suggestion,
+                "proactive_target_block": suggestion_result.target_block,
+            }
+        else:
+            logger.debug("Proactive Suggestion Node: No suggestion generated.")
+            return {
+                "proactive_suggestion": None,
+                "proactive_target_block": None,
+            }
+            
+    except Exception as e:
+        logger.error(f"Proactive Suggestion Node Error: {e}")
+        return {
+            "proactive_suggestion": None,
+            "proactive_target_block": None,
+        }

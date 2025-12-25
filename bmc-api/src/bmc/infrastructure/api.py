@@ -11,7 +11,6 @@ from bmc.application.conversation_service.business_workflow_response import (
     get_business_response,
     get_business_streaming_response,
 )
-from bmc.application.memory_service import memory_service
 from bmc.domain.business_expert_factory import BusinessExpertFactory
 from bmc.domain.business_user_factory import (
     BusinessUserFactory,
@@ -20,7 +19,6 @@ from bmc.domain.business_user_factory import (
     UserAlreadyExistsError,
 )
 from bmc.domain.business_user import BusinessUser
-from langchain_core.messages import HumanMessage, AIMessage
 
 import logging
 from bmc.config import settings
@@ -146,8 +144,7 @@ class BusinessChatMessage(BaseModel):
 
 @app.post("/chat/business")
 async def business_chat(
-    chat_message: BusinessChatMessage, 
-    background_tasks: BackgroundTasks
+    chat_message: BusinessChatMessage
 ):
     """Chat with a Business Canvas expert."""
     try:
@@ -182,24 +179,19 @@ async def business_chat(
             image_name=chat_message.image_name,
         )
 
-        # --- MEMORY EXTRACTION (BACKGROUND) ---
-        # Trigger the "Shared Living Context" update
-        if chat_message.user_token:
-            # Construct the conversation pair (User Request + AI Response)
-            # This is what the Memory Service needs to extract facts.
-            conversation_pair = [
-                HumanMessage(content=chat_message.message),
-                AIMessage(content=response)
-            ]
-            
-            background_tasks.add_task(
-                memory_service.update_user_memory,
-                user_token=chat_message.user_token,
-                messages=conversation_pair
-            )
-        # --------------------------------------
-
-        return {"response": response}
+        # NOTE: Memory extraction is now handled INSIDE the LangGraph workflow
+        # via the memory_extraction_node. No background task needed.
+        
+        # Return response with proactive suggestion if available
+        result = {"response": response}
+        
+        # Add proactive suggestion from state if present
+        proactive_suggestion = state.get("proactive_suggestion")
+        if proactive_suggestion:
+            result["proactive_suggestion"] = proactive_suggestion
+            result["proactive_target_block"] = state.get("proactive_target_block")
+        
+        return result
     except Exception as e:
 
 
@@ -208,8 +200,7 @@ async def business_chat(
 
 @app.post("/chat/business/stream")
 async def business_chat_stream(
-    chat_message: BusinessChatMessage,
-    background_tasks: BackgroundTasks
+    chat_message: BusinessChatMessage
 ):
     """Chat with a Business Canvas expert with streaming response."""
     try:
@@ -228,7 +219,9 @@ async def business_chat_stream(
                 # Continue without user context if database issues occur
                 print(f"Warning: Could not retrieve user context: {e}")
 
-        # Get the original generator
+        # Get the streaming generator
+        # NOTE: Memory extraction is now handled INSIDE the LangGraph workflow
+        # via the memory_extraction_node. No separate memory update needed.
         stream = get_business_streaming_response(
             messages=chat_message.message,
             expert_id=chat_message.expert_id,
@@ -245,44 +238,10 @@ async def business_chat_stream(
             image_name=chat_message.image_name,
         )
         
-        # Wrapper to accumulate response for memory processing
+        # Simple wrapper - memory extraction happens in the graph nodes
         async def response_stream_wrapper():
-            full_response_text = ""
             async for chunk in stream:
-                full_response_text += chunk
                 yield chunk
-            
-            # After stream finishes, trigger memory update
-            if chat_message.user_token:
-                conversation_pair = [
-                    HumanMessage(content=chat_message.message),
-                    AIMessage(content=full_response_text)
-                ]
-                # We can't use 'background_tasks.add_task' here effectively because 
-                # the route handler has already returned. 
-                # Instead, we execute the update directly (fire and forget) 
-                # or rely on the fact that this runs in the generator conclusion.
-                # Ideally, we should offload this to a proper background worker, 
-                # but awaiting it here is acceptable for non-blocking the *stream*,
-                # though it might delay the connection close slightly.
-                
-                # Better approach: Use FastAPI's background task system by passing it to StreamingResponse
-                # BUT StreamingResponse background runs *after* the response closes.
-                # So we just need to pass the data out. 
-                # However, StreamingResponse background task requires a function with args.
-                # We can't easily pass the dynamically generated 'full_response_text' to it 
-                # because the task is defined *before* the stream runs.
-                
-                # PRAGMATIC SOLUTION: Run it here. It's an async operation.
-                # The user has received all tokens. The browser might spin for 1 extra second
-                # while we save memory, but the text is already on screen.
-                try:
-                    await memory_service.update_user_memory(
-                        user_token=chat_message.user_token,
-                        messages=conversation_pair
-                    )
-                except Exception as ex:
-                    logging.error(f"Error in streaming memory update: {ex}")
 
         return StreamingResponse(response_stream_wrapper(), media_type="text/plain")
         

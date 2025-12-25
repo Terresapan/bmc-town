@@ -171,11 +171,17 @@ async def get_business_streaming_response(
 
     Yields:
         Chunks of the response as they become available.
+        After the main response, may yield a special event:
+        - `[PROACTIVE_SUGGESTION]{suggestion}[/PROACTIVE_SUGGESTION]` if a suggestion was generated.
 
     Raises:
         RuntimeError: If there's an error running the conversation workflow.
     """
     graph_builder = create_business_workflow_graph()
+    
+    # Track proactive suggestion from state updates
+    proactive_suggestion = None
+    proactive_target_block = None
 
     try:
         with MongoDBSaver.from_conn_string(
@@ -219,12 +225,35 @@ async def get_business_streaming_response(
                 stream_mode="messages",
             ):
                 # Handle both chunks (if streaming) and full messages (if native SDK)
-                if chunk[1]["langgraph_node"] == "business_conversation_node":
+                node_name = chunk[1].get("langgraph_node", "")
+                
+                if node_name == "business_conversation_node":
                     msg = chunk[0]
                     if isinstance(msg, (AIMessageChunk, AIMessage)):
                         content = _extract_message_content(msg)
                         if content:
                             yield content
+                
+                # Capture proactive suggestion from the proactive_suggestion_node
+                # The chunk[1] contains metadata including state updates
+                if node_name == "proactive_suggestion_node":
+                    # Try to extract from the chunk if it contains state data
+                    msg = chunk[0]
+                    if hasattr(msg, 'content') and isinstance(msg.content, dict):
+                        proactive_suggestion = msg.content.get("proactive_suggestion")
+                        proactive_target_block = msg.content.get("proactive_target_block")
+            
+            # After streaming completes, check final state for proactive suggestion
+            # This is a fallback in case the above didn't capture it
+            if not proactive_suggestion:
+                final_state = await graph.aget_state(config)
+                if final_state and final_state.values:
+                    proactive_suggestion = final_state.values.get("proactive_suggestion")
+                    proactive_target_block = final_state.values.get("proactive_target_block")
+            
+            # Emit proactive suggestion as a special event at the end
+            if proactive_suggestion:
+                yield f"\n[PROACTIVE_SUGGESTION]{proactive_suggestion}|{proactive_target_block or ''}[/PROACTIVE_SUGGESTION]"
 
     except Exception as e:
         raise RuntimeError(

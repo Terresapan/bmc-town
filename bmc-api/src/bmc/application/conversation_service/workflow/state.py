@@ -18,6 +18,9 @@ class BusinessCanvasState(MessagesState):
         image_base64 (Optional[str]): Base64 encoded image for processing.
         pdf_name (Optional[str]): Name of the PDF file.
         file_processing_completed (bool): Whether file processing has been completed.
+        memory_delta (Optional[Dict]): Changes detected by memory extraction node.
+        proactive_suggestion (Optional[str]): Cross-canvas suggestion from proactive node.
+        proactive_target_block (Optional[str]): Which canvas block the suggestion targets.
     """
 
     expert_context: str
@@ -33,6 +36,10 @@ class BusinessCanvasState(MessagesState):
     pdf_name: Optional[str] = None
     image_name: Optional[str] = None
     file_processing_completed: bool = False
+    # New fields for proactive architecture
+    memory_delta: Optional[Dict[str, Any]] = None
+    proactive_suggestion: Optional[str] = None
+    proactive_target_block: Optional[str] = None
 
 
 def business_state_to_str(state: BusinessCanvasState) -> str:

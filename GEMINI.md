@@ -127,10 +127,11 @@ npm run build # Production build
 This feature implements a "Shared Living Context" that persists stateful business knowledge across different Business Expert sessions.
 
 ## 1. Core Concept: "Background Fact-Checker"
-A background process running on **Gemini 2.5 Flash Lite** that extracts business insights after every meaningful interaction. This ensures that:
+A process running on **Gemini 2.5 Flash Lite** that extracts business insights after every meaningful interaction. This ensures that:
 1.  Insights are captured immediately (Real-time).
-2.  The user's response is not delayed (Non-blocking / Background Task).
-3.  Memory is persistent across Expert switches.
+2.  Memory is persistent across Expert switches.
+
+> **Note**: As of the Proactive Agent Architecture update, memory extraction now runs **inside the LangGraph workflow** (via `memory_extraction_node`) rather than as a FastAPI BackgroundTask. This ensures the database is updated before the API response returns.
 
 ## 2. Architecture & Data Flow
 
@@ -140,18 +141,17 @@ A background process running on **Gemini 2.5 Flash Lite** that extracts business
     1.  **Canvas State**: The 9 BMC Blocks (e.g., `customer_segments`, `value_propositions`).
     2.  **Constraints**: Boundaries (e.g., "No subscription models").
     3.  **Preferences**: User interaction style (e.g., "Prefers bullet points").
-    4.  **Pending Topics**: Working memory for next steps.
+    4.  **Pending Topics**: Working memory for next steps (includes `[SYS]` entries from Proactive Advisor).
 
-### B. Writing Strategy (The "Fact-Checker")
--   **Service**: `bmc-api/src/philoagents/application/memory_service.py`
--   **Trigger**: Attached to `/chat/business` and `/chat/business/stream` as a FastAPI `BackgroundTask`.
+### B. Writing Strategy (In-Graph Extraction)
+-   **Service**: `bmc-api/src/bmc/application/memory_service.py`
+-   **Trigger**: Called by `memory_extraction_node` inside the LangGraph workflow.
 -   **Logic**:
-    1.  User sends message -> Agent responds -> API returns response.
-    2.  **Background Task**: `MemoryService.update_user_memory`
-    3.  **LLM Call**: Gemini Flash Lite analyzes the last turn + existing memory.
-    4.  **Prompt**: "Extract explicit agreed facts. Resolve conflicts (User wins). Format as JSON."
-    5.  **Observability**: Runs are tagged with `memory_extraction` and include `user_token` metadata in LangSmith.
-    6.  **Persistence**: Updates `BusinessUser` in MongoDB if changes are detected.
+    1.  User sends message → Agent responds → Memory Extraction Node runs.
+    2.  **LLM Call**: `MemoryService.extract_business_facts` analyzes the conversation.
+    3.  **Delta Computation**: Returns `MemoryExtractionResult` with what changed.
+    4.  **Persistence**: Updates `BusinessUser` in MongoDB if changes are detected.
+    5.  **Observability**: Runs are tagged with `memory_extraction` in LangSmith.
 
 ### C. Reading Strategy (Context Injection)
 -   **Mechanism**: `BusinessUser.to_context_string()`
@@ -210,3 +210,118 @@ We successfully implemented a **Hybrid Architecture** where the core conversatio
 
 **Key Takeaway:**
 When library wrappers (like LangChain) lag behind native SDK features (like Gemini's Grounding), "ejecting" to the native SDK for specific nodes is a powerful and valid architectural pattern. It restores control and unlocks the full potential of the underlying model.
+
+# Feature: Proactive Agent Architecture
+
+This feature transforms the system from reactive (experts only respond to questions) to proactive (experts surface cross-canvas insights without being asked).
+
+## 1. Core Concept: "Canvas Advisor"
+The system now generates cross-canvas suggestions based on what the user shares with one expert. For example, if a user discusses "enterprise customers" with the Customer Segments expert, the system proactively suggests considering "Dedicated Account Management" for the Customer Relationships block.
+
+## 2. Architecture & Data Flow
+
+### A. LangGraph Workflow (Updated)
+The workflow now includes two new nodes:
+```
+START → File Processing → Business Conversation → Memory Extraction → Proactive Suggestion → Summarize (conditional) → END
+```
+
+### B. New Components
+| Component | Purpose |
+|---|---|
+| `memory_extraction_node` | Extracts facts from conversation, computes delta, updates MongoDB |
+| `proactive_suggestion_node` | Analyzes delta, generates cross-canvas suggestions, stages in `pending_topics` |
+| `proactive_service.py` | Service that uses Gemini Flash Lite to generate suggestions |
+
+### C. State Extensions (`BusinessCanvasState`)
+- `memory_delta`: What changed in this conversation (added/removed facts)
+- `proactive_suggestion`: The generated cross-canvas suggestion text
+- `proactive_target_block`: Which canvas block the suggestion targets
+
+## 3. System Narrator Pattern
+Suggestions use a `[SYS]` prefix to distinguish AI-generated suggestions from user thoughts:
+- **Storage**: `pending_topics: ["[SYS] Consider 'Direct Sales' in Channels for Enterprise segment."]`
+- **Expert Behavior**: Experts naturally bring up `[SYS]` entries that relate to their domain
+- **User Agency**: User must explicitly confirm before suggestions are applied to canvas
+
+## 4. API Response (Updated)
+The chat endpoint now returns proactive suggestions:
+```json
+{
+  "response": "Expert's chat response...",
+  "proactive_suggestion": "Consider 'Dedicated Account Management'...",
+  "proactive_target_block": "customer_relationships"
+}
+```
+
+## 5. Streaming Support
+The streaming endpoint emits a special marker at the end:
+```
+[PROACTIVE_SUGGESTION]suggestion text|target_block[/PROACTIVE_SUGGESTION]
+```
+
+## 6. UI Tooltip
+The frontend displays a styled tooltip in the top-right corner when suggestions are received:
+- 💡 Light bulb icon
+- "Canvas Advisor" label
+- Suggestion text with target block
+- Auto-dismisses after 10 seconds
+
+## 7. Implementation Status
+- ✅ `proactive_service.py` with cross-canvas logic
+- ✅ `memory_service.py` refactored to return `MemoryExtractionResult` with delta
+- ✅ New nodes integrated into LangGraph workflow
+- ✅ Background task removed (memory extraction now inside graph)
+- ✅ Expert prompts updated to surface `[SYS]` entries
+- ✅ Rule 8 added to fact extraction for `[SYS]` handling
+- ✅ API response includes `proactive_suggestion`
+- ✅ Streaming events for proactive suggestions
+- ✅ UI tooltip in frontend
+
+---
+
+# Future Improvement: Cohort/Template Layer
+
+A planned feature to analyze patterns across users and provide template-based recommendations.
+
+## 1. Concept
+The Cohort Layer would enable:
+- **Pattern Recognition**: Identify common canvas patterns across users in the same sector
+- **Template Recommendations**: Suggest proven canvas elements based on similar businesses
+- **Benchmarking**: Show how a user's canvas compares to others in their cohort
+
+## 2. Proposed Architecture
+
+### A. Cohort Classification
+Users would be grouped by:
+- `sector` (e.g., "Technology", "Retail", "Healthcare")
+- `business_stage` (e.g., "Idea", "MVP", "Growth")
+- Key canvas patterns (e.g., "B2B SaaS", "E-commerce", "Marketplace")
+
+### B. Data Sources (Existing)
+The system already captures sufficient data in `key_insights`:
+- `canvas_state`: The 9 BMC blocks with user facts
+- `constraints`: User-defined boundaries
+- No additional chat history or file storage needed
+
+### C. Planned Components
+| Component | Purpose |
+|---|---|
+| `cohort_service.py` | Analyze canvas patterns, classify users, generate recommendations |
+| `template_library` | Pre-defined canvas templates for common business types |
+| `CohortAnalysis` model | Store aggregated insights per cohort |
+
+## 3. Key Decisions (Not Yet Implemented)
+- **Privacy**: Only aggregate patterns, never expose individual user data
+- **Opt-in**: Users should consent to cohort participation
+- **Lightweight**: Use existing `key_insights` data, avoid storing chat history
+
+## 4. When to Consider Chat History Storage
+Future phases might benefit from chat history for:
+- Fine-tuning personas based on successful expert interactions
+- Training evaluators on real conversation patterns
+- Providing users with conversation export/backup
+
+## 5. Implementation Status
+- ⏳ **Not Started**: This is a future enhancement
+- 📋 **Plan Available**: See `cohort_implementation_plan.md` in artifacts
