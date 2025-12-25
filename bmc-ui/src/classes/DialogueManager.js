@@ -121,6 +121,7 @@ class DialogueManager {
   async handleBusinessStream() {
     this.isStreaming = true;
     this.streamingText = "";
+    let proactiveSuggestion = null;
     
     await ApiService.streamBusinessMessage(
       this.activePhilosopher,
@@ -129,10 +130,157 @@ class DialogueManager {
       (chunk) => {
         this.streamingText += chunk;
         this.dialogueBox.show(this.streamingText, true);
+      },
+      (suggestion) => {
+        // Capture proactive suggestion from the stream
+        proactiveSuggestion = suggestion;
+        console.log("💡 Proactive Suggestion Received:", suggestion);
       }
     );
     
     this.finishStreaming();
+    
+    // Display proactive suggestion tooltip if we received one
+    if (proactiveSuggestion && proactiveSuggestion.suggestion) {
+      this.showProactiveSuggestionTooltip(proactiveSuggestion);
+    }
+  }
+
+  /**
+   * Shows a tooltip with a proactive cross-canvas suggestion.
+   * @param {Object} suggestion - The suggestion object with suggestion text and targetBlock.
+   */
+  showProactiveSuggestionTooltip(suggestion) {
+    // Remove any existing tooltip first
+    this.hideProactiveSuggestionTooltip();
+    
+    // Create tooltip element
+    const tooltip = document.createElement("div");
+    tooltip.id = "proactive-suggestion-tooltip";
+    tooltip.className = "proactive-tooltip";
+    tooltip.innerHTML = `
+      <div class="proactive-tooltip-icon">💡</div>
+      <div class="proactive-tooltip-content">
+        <div class="proactive-tooltip-label">Canvas Advisor</div>
+        <div class="proactive-tooltip-text">${suggestion.suggestion}</div>
+        ${suggestion.targetBlock ? `<div class="proactive-tooltip-target">→ ${this.formatBlockName(suggestion.targetBlock)}</div>` : ""}
+      </div>
+      <button class="proactive-tooltip-close" onclick="document.getElementById('proactive-suggestion-tooltip').remove()">×</button>
+    `;
+    
+    // Add styles if not already present
+    if (!document.getElementById("proactive-tooltip-styles")) {
+      const style = document.createElement("style");
+      style.id = "proactive-tooltip-styles";
+      style.textContent = `
+        .proactive-tooltip {
+          position: fixed;
+          top: 20px;
+          right: 20px;
+          max-width: 350px;
+          background: linear-gradient(135deg, rgba(45, 55, 72, 0.95) 0%, rgba(26, 32, 44, 0.95) 100%);
+          border: 1px solid rgba(99, 179, 237, 0.4);
+          border-radius: 12px;
+          padding: 16px 20px;
+          display: flex;
+          align-items: flex-start;
+          gap: 12px;
+          box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4), 0 0 20px rgba(99, 179, 237, 0.15);
+          z-index: 10000;
+          animation: slideInRight 0.4s ease-out, fadeOut 0.5s ease-out 8s forwards;
+          font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+        }
+        
+        @keyframes slideInRight {
+          from { transform: translateX(100px); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+        
+        @keyframes fadeOut {
+          from { opacity: 1; }
+          to { opacity: 0; }
+        }
+        
+        .proactive-tooltip-icon {
+          font-size: 28px;
+          line-height: 1;
+          flex-shrink: 0;
+        }
+        
+        .proactive-tooltip-content {
+          flex: 1;
+        }
+        
+        .proactive-tooltip-label {
+          font-size: 11px;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          color: rgba(99, 179, 237, 0.9);
+          margin-bottom: 6px;
+        }
+        
+        .proactive-tooltip-text {
+          font-size: 14px;
+          line-height: 1.5;
+          color: rgba(255, 255, 255, 0.95);
+        }
+        
+        .proactive-tooltip-target {
+          font-size: 12px;
+          color: rgba(154, 230, 180, 0.9);
+          margin-top: 8px;
+          padding-top: 8px;
+          border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .proactive-tooltip-close {
+          background: none;
+          border: none;
+          color: rgba(255, 255, 255, 0.5);
+          font-size: 20px;
+          cursor: pointer;
+          padding: 0;
+          line-height: 1;
+          transition: color 0.2s;
+        }
+        
+        .proactive-tooltip-close:hover {
+          color: rgba(255, 255, 255, 0.9);
+        }
+      `;
+      document.head.appendChild(style);
+    }
+    
+    document.body.appendChild(tooltip);
+    
+    // Auto-remove after 10 seconds
+    setTimeout(() => {
+      this.hideProactiveSuggestionTooltip();
+    }, 10000);
+  }
+  
+  /**
+   * Hides the proactive suggestion tooltip if visible.
+   */
+  hideProactiveSuggestionTooltip() {
+    const existing = document.getElementById("proactive-suggestion-tooltip");
+    if (existing) {
+      existing.remove();
+    }
+  }
+  
+  /**
+   * Formats a canvas block name for display.
+   * @param {string} blockName - The raw block name (e.g., "customer_segments").
+   * @returns {string} Formatted name (e.g., "Customer Segments").
+   */
+  formatBlockName(blockName) {
+    if (!blockName) return "";
+    return blockName
+      .split("_")
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ");
   }
 
   async processWebSocketMessage() {
