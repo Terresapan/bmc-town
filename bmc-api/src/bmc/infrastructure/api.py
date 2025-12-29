@@ -564,9 +564,16 @@ async def accept_suggestion(token: str, request: SuggestionActionRequest):
         # Add to target canvas block if specified
         added_to_block = False
         if request.target_block and request.target_block in user.key_insights.canvas_state:
-            # Extract the actionable part (e.g., "Direct Sales" from "Add 'Direct Sales' to Channels")
-            # For now, we'll add the full suggestion; can be refined later
-            suggestion_value = request.suggestion
+            # Extract the actionable value from suggestion text
+            # Pattern: "Add 'Value Here' to Block Name - optional explanation"
+            import re
+            match = re.search(r"Add\s+'([^']+)'", request.suggestion)
+            if match:
+                suggestion_value = match.group(1)  # Extract just the value in quotes
+            else:
+                # Fallback: use the full suggestion if no pattern match
+                suggestion_value = request.suggestion
+            
             if suggestion_value not in user.key_insights.canvas_state[request.target_block]:
                 user.key_insights.canvas_state[request.target_block].append(suggestion_value)
                 added_to_block = True

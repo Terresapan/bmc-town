@@ -37,13 +37,13 @@ class SuggestionManager {
         right: 20px;
         max-width: 380px;
         background: linear-gradient(135deg, rgba(45, 55, 72, 0.98) 0%, rgba(26, 32, 44, 0.98) 100%);
-        border: 1px solid rgba(99, 179, 237, 0.4);
+        border: 1px solid rgba(168, 85, 247, 0.4);
         border-radius: 12px;
         padding: 16px 20px;
         display: flex;
         flex-direction: column;
         gap: 12px;
-        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4), 0 0 20px rgba(99, 179, 237, 0.15);
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4), 0 0 20px rgba(168, 85, 247, 0.2);
         z-index: 10000;
         animation: slideInRight 0.4s ease-out;
         font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
@@ -80,7 +80,7 @@ class SuggestionManager {
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.5px;
-        color: rgba(99, 179, 237, 0.9);
+        color: rgba(168, 85, 247, 0.9);
         margin-bottom: 6px;
       }
       
@@ -92,7 +92,7 @@ class SuggestionManager {
       
       .proactive-tooltip-target {
         font-size: 12px;
-        color: rgba(154, 230, 180, 0.9);
+        color: rgba(217, 70, 239, 0.9);
         margin-top: 8px;
         padding-top: 8px;
         border-top: 1px solid rgba(255, 255, 255, 0.1);
@@ -135,12 +135,12 @@ class SuggestionManager {
       }
       
       .action-accept {
-        background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+        background: linear-gradient(135deg, #d946ef 0%, #a855f7 100%);
         color: white;
       }
       
       .action-accept:hover {
-        background: linear-gradient(135deg, #68d391 0%, #48bb78 100%);
+        background: linear-gradient(135deg, #e879f9 0%, #c084fc 100%);
         transform: translateY(-1px);
       }
       
@@ -160,7 +160,7 @@ class SuggestionManager {
         position: fixed;
         top: 20px;
         right: 20px;
-        background: linear-gradient(135deg, rgba(99, 179, 237, 0.9) 0%, rgba(66, 153, 225, 0.9) 100%);
+        background: linear-gradient(135deg, #d946ef 0%, #a855f7 100%);
         border-radius: 50px;
         padding: 10px 16px;
         display: flex;
@@ -168,14 +168,14 @@ class SuggestionManager {
         gap: 8px;
         cursor: pointer;
         z-index: 9999;
-        box-shadow: 0 4px 15px rgba(66, 153, 225, 0.4);
+        box-shadow: 0 4px 15px rgba(168, 85, 247, 0.4);
         transition: all 0.3s ease;
         font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
       }
       
       .suggestion-badge:hover {
         transform: scale(1.05);
-        box-shadow: 0 6px 20px rgba(66, 153, 225, 0.5);
+        box-shadow: 0 6px 20px rgba(168, 85, 247, 0.5);
       }
       
       .suggestion-badge.hidden {
@@ -200,7 +200,7 @@ class SuggestionManager {
         width: 400px;
         max-height: 70vh;
         background: linear-gradient(135deg, rgba(45, 55, 72, 0.98) 0%, rgba(26, 32, 44, 0.98) 100%);
-        border: 1px solid rgba(99, 179, 237, 0.3);
+        border: 1px solid rgba(168, 85, 247, 0.3);
         border-radius: 12px;
         padding: 20px;
         z-index: 10001;
@@ -244,7 +244,7 @@ class SuggestionManager {
       
       .suggestion-item-target {
         font-size: 12px;
-        color: rgba(154, 230, 180, 0.8);
+        color: rgba(217, 70, 239, 0.8);
         margin-bottom: 12px;
       }
       
