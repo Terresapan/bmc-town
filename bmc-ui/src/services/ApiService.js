@@ -544,6 +544,74 @@ class ApiService {
       throw error;
     }
   }
+
+  // --- PROACTIVE SUGGESTION ACTIONS ---
+
+  /**
+   * Accept a proactive suggestion.
+   * Removes from pending_topics and adds to the target canvas block.
+   * @param {string} userToken - The user's token.
+   * @param {string} suggestion - The suggestion text.
+   * @param {string} targetBlock - The canvas block to add the suggestion to.
+   * @returns {Promise<Object>} The server response.
+   */
+  async acceptSuggestion(userToken, suggestion, targetBlock) {
+    try {
+      const response = await fetch(
+        `${this.apiUrl}/business/user/${userToken}/suggestion/accept`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            suggestion: suggestion,
+            target_block: targetBlock,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || "Failed to accept suggestion");
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error("Error accepting suggestion:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Dismiss a proactive suggestion.
+   * Removes from pending_topics without adding to canvas.
+   * @param {string} userToken - The user's token.
+   * @param {string} suggestion - The suggestion text.
+   * @returns {Promise<Object>} The server response.
+   */
+  async dismissSuggestion(userToken, suggestion) {
+    try {
+      const response = await fetch(
+        `${this.apiUrl}/business/user/${userToken}/suggestion/dismiss`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            suggestion: suggestion,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || "Failed to dismiss suggestion");
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error("Error dismissing suggestion:", error);
+      throw error;
+    }
+  }
 }
 
 const apiServiceInstance = new ApiService();

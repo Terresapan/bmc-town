@@ -142,6 +142,12 @@ class BusinessChatMessage(BaseModel):
     image_name: Optional[str] = None
 
 
+class SuggestionActionRequest(BaseModel):
+    """Request model for accepting or dismissing a proactive suggestion."""
+    suggestion: str  # The suggestion text (without [SYS] prefix)
+    target_block: Optional[str] = None  # Canvas block for accept action
+
+
 @app.post("/chat/business")
 async def business_chat(
     chat_message: BusinessChatMessage
@@ -527,6 +533,117 @@ async def reset_business_memory(token: str):
 # ---
 # --- END OF CRUD ENDPOINTS ---
 # ---
+
+# --- SUGGESTION ACTION ENDPOINTS ---
+@app.post("/business/user/{token}/suggestion/accept")
+async def accept_suggestion(token: str, request: SuggestionActionRequest):
+    """
+    Accept a proactive suggestion.
+    - Removes [SYS] entry from pending_topics
+    - Adds the suggestion content to the appropriate canvas_state block
+    """
+    try:
+        user_factory = BusinessUserFactory()
+        user = await user_factory.get_user_by_token(token)
+        
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"User with token '{token}' not found."
+            )
+        
+        # Find and remove matching [SYS] entry from pending_topics
+        # Match on suggestion text (with or without [SYS] prefix)
+        original_count = len(user.key_insights.pending_topics)
+        user.key_insights.pending_topics = [
+            t for t in user.key_insights.pending_topics 
+            if not (t.startswith("[SYS]") and request.suggestion in t)
+        ]
+        removed = original_count - len(user.key_insights.pending_topics)
+        
+        # Add to target canvas block if specified
+        added_to_block = False
+        if request.target_block and request.target_block in user.key_insights.canvas_state:
+            # Extract the actionable part (e.g., "Direct Sales" from "Add 'Direct Sales' to Channels")
+            # For now, we'll add the full suggestion; can be refined later
+            suggestion_value = request.suggestion
+            if suggestion_value not in user.key_insights.canvas_state[request.target_block]:
+                user.key_insights.canvas_state[request.target_block].append(suggestion_value)
+                added_to_block = True
+        
+        # Save updated user
+        await user_factory.update_user(token, user)
+        
+        return {
+            "status": "accepted",
+            "removed_from_pending": removed > 0,
+            "added_to_canvas": added_to_block,
+            "target_block": request.target_block
+        }
+        
+    except DatabaseConnectionError as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database connection failed. Please try again later."
+        )
+    except DatabaseOperationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Database operation failed. Please try again."
+        )
+    except Exception as e:
+        if isinstance(e, HTTPException): raise e
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/business/user/{token}/suggestion/dismiss")
+async def dismiss_suggestion(token: str, request: SuggestionActionRequest):
+    """
+    Dismiss a proactive suggestion.
+    - Removes [SYS] entry from pending_topics (no canvas update)
+    """
+    try:
+        user_factory = BusinessUserFactory()
+        user = await user_factory.get_user_by_token(token)
+        
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"User with token '{token}' not found."
+            )
+        
+        # Find and remove matching [SYS] entry from pending_topics
+        original_count = len(user.key_insights.pending_topics)
+        user.key_insights.pending_topics = [
+            t for t in user.key_insights.pending_topics 
+            if not (t.startswith("[SYS]") and request.suggestion in t)
+        ]
+        removed = original_count - len(user.key_insights.pending_topics)
+        
+        # Save updated user
+        await user_factory.update_user(token, user)
+        
+        return {
+            "status": "dismissed",
+            "removed_from_pending": removed > 0
+        }
+        
+    except DatabaseConnectionError as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database connection failed. Please try again later."
+        )
+    except DatabaseOperationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Database operation failed. Please try again."
+        )
+    except Exception as e:
+        if isinstance(e, HTTPException): raise e
+        raise HTTPException(status_code=500, detail=str(e))
+
+# --- END SUGGESTION ACTION ENDPOINTS ---
+
 
 # --- PDF EXPORT ENDPOINT ---
 @app.get("/business/user/{token}/export-pdf")

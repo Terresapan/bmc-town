@@ -50,14 +50,22 @@ Determine if this change has **strong, obvious implications** for OTHER canvas b
 
 RULES:
 1. Only suggest if there's a CLEAR, HIGH-VALUE connection.
-2. Be specific and actionable.
-3. Keep suggestions under 30 words.
-4. If no clear implication exists, return null.
+2. Be VERY SPECIFIC: Include the EXACT value to add (e.g., "Add 'Online Store' to Channels").
+3. Never use vague language like "consider exploring" or "talk to another expert".
+4. The suggestion should be a direct action: "Add 'X' to [Block Name]".
+5. Keep suggestions under 30 words.
+6. If no clear implication exists, return null.
 
 EXAMPLES OF GOOD SUGGESTIONS:
-- "Adding 'Enterprise' to segments often requires 'Direct Sales' in Channels."
-- "A 'Freemium' revenue model typically needs 'Product-Led Growth' in your Channels."
-- "With 'AI/ML capabilities' as a resource, consider 'API Access' as an additional revenue stream."
+- "Add 'Direct Sales' to Channels - enterprise customers typically need dedicated sales reps."
+- "Add 'Product-Led Growth' to Channels - freemium models work best with self-serve onboarding."
+- "Add 'API Access' to Revenue Streams - your AI/ML capabilities can be monetized as a platform."
+- "Add 'Dedicated Account Management' to Customer Relationships - enterprise clients expect personalized service."
+
+EXAMPLES OF BAD SUGGESTIONS (do NOT generate these):
+- "Consider exploring channel options with the Channels expert." (too vague)
+- "You might want to think about customer relationships." (no concrete action)
+- "Talk to another expert about revenue streams." (not actionable)
 
 OUTPUT FORMAT (JSON only, no markdown):
 {{
@@ -66,6 +74,7 @@ OUTPUT FORMAT (JSON only, no markdown):
   "confidence": 0.0-1.0
 }}
 """
+
 
 
 @dataclass
