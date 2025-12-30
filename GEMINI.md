@@ -260,15 +260,41 @@ The streaming endpoint emits a special marker at the end:
 [PROACTIVE_SUGGESTION]suggestion text|target_block[/PROACTIVE_SUGGESTION]
 ```
 
-## 6. UI Tooltip
-The frontend displays a styled tooltip in the top-right corner when suggestions are received:
-- 💡 Light bulb icon
-- "Canvas Advisor" label
-- Suggestion text with target block
-- Auto-dismisses after 10 seconds
+## 6. Suggestion Badge Inbox (UI)
+The frontend implements a **Collapse-to-Badge** pattern for managing proactive suggestions:
+
+### A. Popup Behavior
+- 💡 Light bulb icon with "Canvas Advisor" label
+- Suggestion text with target canvas block
+- **Accept** button: Adds value to canvas block, removes from pending_topics
+- **Dismiss** button: Removes from pending_topics only
+- **30-second timeout**: Collapses to badge if no action taken
+
+### B. Badge & Inbox
+- If popup is ignored or new suggestion arrives, it collapses to a **persistent badge** (`💡 2`)
+- Clicking badge opens an **inbox panel** with all queued suggestions
+- Each suggestion can be individually accepted or dismissed
+
+### C. Value Extraction
+Suggestions use specific format: `"Add 'X' to [Block Name]"`
+- On Accept, backend extracts only the quoted value (e.g., `'X'`)
+- This value is added to the target canvas block, not the full suggestion text
+
+### D. API Endpoints
+| Endpoint | Purpose |
+|----------|---------|
+| `POST /business/user/{token}/suggestion/accept` | Accept suggestion: add to canvas, remove from pending |
+| `POST /business/user/{token}/suggestion/dismiss` | Dismiss suggestion: remove from pending only |
+
+### E. Frontend Components
+| File | Purpose |
+|------|---------|
+| `SuggestionManager.js` | Manages popup, badge, inbox, and API calls |
+| `ApiService.js` | `acceptSuggestion()` and `dismissSuggestion()` methods |
+| `DialogueManager.js` | Delegates to SuggestionManager for business mode |
 
 ## 7. Implementation Status
-- ✅ `proactive_service.py` with cross-canvas logic
+- ✅ `proactive_service.py` with cross-canvas logic (updated for specific suggestions)
 - ✅ `memory_service.py` refactored to return `MemoryExtractionResult` with delta
 - ✅ New nodes integrated into LangGraph workflow
 - ✅ Background task removed (memory extraction now inside graph)
@@ -276,7 +302,9 @@ The frontend displays a styled tooltip in the top-right corner when suggestions 
 - ✅ Rule 8 added to fact extraction for `[SYS]` handling
 - ✅ API response includes `proactive_suggestion`
 - ✅ Streaming events for proactive suggestions
-- ✅ UI tooltip in frontend
+- ✅ Suggestion Badge Inbox UI with Accept/Dismiss buttons
+- ✅ Value extraction for clean canvas entries
+- ✅ API endpoints for suggestion actions
 
 ---
 
