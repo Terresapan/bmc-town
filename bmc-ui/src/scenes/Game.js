@@ -476,9 +476,9 @@ export class Game extends Scene {
       .setVisible(false);
 
     this.spaceKey = this.input.keyboard.addKey("SPACE");
-
-    this.dialogueManager = new DialogueManager(this);
-    this.dialogueManager.initialize(this.dialogueBox);
+    
+    // NOTE: DialogueManager is initialized in create() with gameMode and userToken
+    // Do NOT create a second instance here as it would lose the SuggestionManager
   }
 
   update(time, delta) {
